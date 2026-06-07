@@ -1,0 +1,130 @@
+import { NextResponse } from "next/server";
+
+import { normalizeQuestionnaire } from "@/lib/questionnaire-schema";
+import { syncReactiveTasks, type QuestionnaireData } from "@/lib/rule-engine";
+import { supabaseAdmin } from "@/lib/supabase-server";
+
+type RouteParams = {
+  params: Promise<{
+    token: string;
+  }>;
+};
+
+async function findEventByToken(token: string) {
+  const { data, error } = await supabaseAdmin
+    .from("events")
+    .select("id, celebratory_name, age, event_date, start_time, end_time, status")
+    .eq("token_unico", token)
+    .single();
+
+  if (error) {
+    return { event: null, error };
+  }
+
+  return { event: data, error: null };
+}
+
+async function getPublicTasks(eventId: string) {
+  const { data, error } = await supabaseAdmin
+    .from("event_tasks")
+    .select("id, task_name, description, scheduled_time, role_responsible, visibility, status")
+    .eq("event_id", eventId)
+    .eq("visibility", "publica")
+    .order("scheduled_time", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? [];
+}
+
+export async function GET(_request: Request, context: RouteParams) {
+  const { token } = await context.params;
+  const { event, error } = await findEventByToken(token);
+
+  if (error || !event) {
+    return NextResponse.json({ error: "Evento no encontrado." }, { status: 404 });
+  }
+
+  const { data: questionnaire, error: questionnaireError } = await supabaseAdmin
+    .from("questionnaire_data")
+    .select("data, updated_at")
+    .eq("event_id", event.id)
+    .maybeSingle();
+
+  if (questionnaireError) {
+    return NextResponse.json(
+      { error: "No se pudo cargar el cuestionario." },
+      { status: 500 },
+    );
+  }
+
+  try {
+    const publicTasks = await getPublicTasks(event.id);
+
+    return NextResponse.json({
+      event,
+      questionnaire: normalizeQuestionnaire(
+        (questionnaire?.data ?? {}) as Partial<QuestionnaireData>,
+      ),
+      updatedAt: questionnaire?.updated_at ?? null,
+      publicTasks,
+    });
+  } catch {
+    return NextResponse.json(
+      { error: "No se pudo cargar el cronograma publico." },
+      { status: 500 },
+    );
+  }
+}
+
+export async function PUT(request: Request, context: RouteParams) {
+  const { token } = await context.params;
+  const { event, error } = await findEventByToken(token);
+
+  if (error || !event) {
+    return NextResponse.json({ error: "Evento no encontrado." }, { status: 404 });
+  }
+
+  const body = (await request.json()) as { questionnaire?: QuestionnaireData };
+  const questionnaire = normalizeQuestionnaire(body.questionnaire ?? {});
+
+  const { error: upsertError } = await supabaseAdmin.from("questionnaire_data").upsert(
+    {
+      event_id: event.id,
+      data: questionnaire,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "event_id" },
+  );
+
+  if (upsertError) {
+    return NextResponse.json(
+      { error: "No se pudo guardar el cuestionario." },
+      { status: 500 },
+    );
+  }
+
+  try {
+    const generatedTasks = await syncReactiveTasks(supabaseAdmin, event.id, questionnaire);
+
+    await supabaseAdmin
+      .from("events")
+      .update({ status: "guardado" })
+      .eq("id", event.id);
+
+    const publicTasks = await getPublicTasks(event.id);
+
+    return NextResponse.json({
+      ok: true,
+      generatedTasks,
+      publicTasks,
+    });
+  } catch {
+    return NextResponse.json(
+      { error: "El cuestionario se guardó, pero falló la inyección de tareas." },
+      { status: 500 },
+    );
+  }
+}
