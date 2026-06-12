@@ -1,5 +1,16 @@
 ## ADDED Requirements
 
+### Requirement: Questionnaire rule configuration hides responsible override
+El sistema SHALL permitir configurar reglas de cuestionario sin mostrar ni requerir el campo Responsable como override manual.
+
+#### Scenario: Crear regla sin responsable override
+- **WHEN** la administradora crea una regla con pregunta, condicion y tareas maestras asociadas
+- **THEN** el sistema guarda la regla sin pedir Responsable en la interfaz
+
+#### Scenario: Editar regla existente con responsable heredado
+- **WHEN** la administradora edita una regla que conserva un responsable heredado en datos existentes
+- **THEN** el sistema permite guardar cambios visibles sin mostrar ni requerir ese responsable heredado
+
 ### Requirement: Admin can manage questionnaire task rules
 El sistema SHALL permitir que una administradora cree, edite, active, desactive y elimine reglas que relacionan preguntas del cuestionario con una o varias tareas maestras.
 
@@ -50,7 +61,7 @@ El sistema SHALL soportar condiciones simples por regla con operadores `answered
 - **THEN** el sistema considera que la regla aplica
 
 ### Requirement: Rules generate master tasks
-El sistema SHALL permitir que cada regla genere una o mas tareas desde el catalogo `master_tasks`, con overrides opcionales de hora, responsable, visibilidad, descripcion, orden y staff asignado por cada tarea asociada.
+El sistema SHALL permitir que cada regla genere una o mas tareas desde el catalogo `master_tasks`, con overrides opcionales de hora, visibilidad, descripcion, orden y responsables asignados por cada tarea asociada.
 
 #### Scenario: Generar una tarea desde catalogo
 - **WHEN** una respuesta cumple una regla activa con una tarea maestra asociada
@@ -61,24 +72,28 @@ El sistema SHALL permitir que cada regla genere una o mas tareas desde el catalo
 - **THEN** el sistema crea una tarea de evento por cada tarea maestra asociada a la regla
 
 #### Scenario: Aplicar overrides independientes por tarea
-- **WHEN** la relacion regla-tarea define hora, responsable, staff asignado, visibilidad o descripcion para una tarea asociada
+- **WHEN** la relacion regla-tarea define hora, responsables asignados, visibilidad o descripcion para una tarea asociada
 - **THEN** el sistema usa esos valores solo para esa tarea y conserva los valores de las demas tareas asociadas
 
 #### Scenario: Respetar orden operativo
 - **WHEN** una regla tiene multiples tareas asociadas con `sort_order`
 - **THEN** el sistema muestra y genera las tareas en el orden configurado
 
-#### Scenario: Propagar responsable predeterminado de tarea maestra
-- **WHEN** una respuesta cumple una regla cuya tarea maestra tiene `default_staff_id` y la relacion regla-tarea no define un staff asignado distinto
-- **THEN** el sistema crea o actualiza la tarea de evento con ese `staff_id`
+#### Scenario: Propagar responsables predeterminados de tarea maestra
+- **WHEN** una respuesta cumple una regla cuya tarea maestra tiene responsables predeterminados y la relacion regla-tarea no define responsables distintos
+- **THEN** el sistema crea o actualiza la tarea de evento con esa lista de responsables
 
-#### Scenario: Usar override de staff de regla
-- **WHEN** una respuesta cumple una regla cuya relacion regla-tarea define `override_staff_id`
-- **THEN** el sistema crea o actualiza la tarea de evento con ese `staff_id` aunque la tarea maestra tenga otro responsable predeterminado
+#### Scenario: Usar override de responsables de regla
+- **WHEN** una respuesta cumple una regla cuya relacion regla-tarea define responsables override
+- **THEN** el sistema crea o actualiza la tarea de evento con esa lista aunque la tarea maestra tenga otros responsables predeterminados
 
-#### Scenario: Conservar fallback de rol responsable
+#### Scenario: Crear tarea sin staff asignado
 - **WHEN** una regla genera una tarea sin staff asignado por override ni por tarea maestra
-- **THEN** el sistema crea o actualiza la tarea de evento sin `staff_id` y con `role_responsible` basado en el override de rol, el rol default de tarea maestra o el fallback operativo
+- **THEN** el sistema crea o actualiza la tarea de evento sin responsables asignados y sin requerir un responsable visible
+
+#### Scenario: Preservar responsables manuales en tarea generada
+- **WHEN** una tarea generada por una regla fue editada manualmente y tiene responsables personalizados
+- **THEN** futuros guardados de cuestionario no reemplazan esa lista de responsables
 
 ### Requirement: Multiple task preview is explicit
 El sistema SHALL mostrar una vista previa clara de todas las tareas que se generaran cuando una regla de cuestionario tenga multiples tareas asociadas.
@@ -162,7 +177,7 @@ El sistema SHALL usar reglas configurables como fuente principal para generar ta
 El sistema SHALL permitir que las reglas sembradas se editen, desactiven o eliminen desde la administracion como cualquier regla creada manualmente.
 
 #### Scenario: Editar regla sembrada
-- **WHEN** la duena modifica tareas, horarios, visibilidad o responsable de una regla sembrada
+- **WHEN** la duena modifica tareas, horarios, visibilidad o staff asignado de una regla sembrada
 - **THEN** el sistema conserva esos cambios para futuros guardados de cuestionario
 
 #### Scenario: Desactivar regla sembrada
@@ -230,7 +245,7 @@ El sistema SHALL crear tareas desde Reglas Cuestionario usando las mismas reglas
 - **THEN** el sistema rechaza el guardado y muestra un mensaje claro sin cerrar el modal
 
 #### Scenario: Responsable predeterminado invalido
-- **WHEN** la administradora selecciona un responsable predeterminado que no existe en el catalogo de staff
+- **WHEN** la administradora selecciona uno o mas responsables predeterminados que no existen en el catalogo de staff
 - **THEN** el sistema rechaza la creacion y muestra el mensaje de validacion del servidor
 
 #### Scenario: Error de servidor conserva datos del modal

@@ -1,5 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import {
+  getAssignedStaffIds,
+  replaceStaffRelations,
+  type StaffAssignmentMember,
+} from "@/lib/staff-assignments";
+
 export type QuestionnaireData = {
   [key: string]: string | number | boolean | string[] | undefined;
   celebratoryFullName?: string;
@@ -212,11 +218,13 @@ export type GeneratedEventTask = {
   description: string;
   scheduled_time: string | null;
   staff_id?: string | null;
+  staff_ids?: string[];
   role_responsible: string;
   visibility: "interna" | "publica";
   status: "pendiente";
   is_manual_override: false;
   source_rule_task_id?: string | null;
+  source_master_task_id?: string | null;
 };
 
 export type EventSchedule = {
@@ -225,12 +233,15 @@ export type EventSchedule = {
 };
 
 type MasterTaskTemplate = {
+  id?: string;
   name: string;
   base_description: string | null;
   visibility: "interna" | "publica";
   area: string | null;
   default_role: string | null;
   default_staff_id: string | null;
+  required_responsible_count?: number | null;
+  master_task_default_staff?: StaffAssignmentMember[] | null;
 };
 
 type TaskRule = {
@@ -254,6 +265,7 @@ export type ConfigurableRuleTask = {
   override_scheduled_time: string | null;
   override_role_responsible: string | null;
   override_staff_id: string | null;
+  questionnaire_task_rule_task_staff?: StaffAssignmentMember[] | null;
   override_visibility: "interna" | "publica" | null;
   sort_order: number | null;
   master_tasks: {
@@ -264,6 +276,8 @@ export type ConfigurableRuleTask = {
     area: string | null;
     default_role: string | null;
     default_staff_id: string | null;
+    required_responsible_count?: number | null;
+    master_task_default_staff?: StaffAssignmentMember[] | null;
   } | Array<{
     id: string;
     name: string;
@@ -272,6 +286,8 @@ export type ConfigurableRuleTask = {
     area: string | null;
     default_role: string | null;
     default_staff_id: string | null;
+    required_responsible_count?: number | null;
+    master_task_default_staff?: StaffAssignmentMember[] | null;
   }> | null;
 };
 
@@ -297,12 +313,14 @@ const createTask = (
   role_responsible: string,
   visibility: "interna" | "publica" = "interna",
   staff_id: string | null = null,
+  staff_ids: string[] = staff_id ? [staff_id] : [],
 ): GeneratedEventTask => ({
   event_id: eventId,
   task_name,
   description,
   scheduled_time,
-  staff_id,
+  staff_id: staff_ids[0] ?? staff_id,
+  staff_ids,
   role_responsible,
   visibility,
   status: "pendiente",
@@ -990,6 +1008,27 @@ function normalizeRuleTime(value?: string | null) {
   return value.length > 5 ? value.slice(0, 5) : value;
 }
 
+function toEventTaskRow(task: GeneratedEventTask) {
+  const row = { ...task };
+  delete row.staff_ids;
+
+  return row;
+}
+
+async function persistEventTaskStaff(taskId: string, task: GeneratedEventTask) {
+  const staffIds = task.staff_ids ?? (task.staff_id ? [task.staff_id] : []);
+  const relationError = await replaceStaffRelations({
+    table: "event_task_staff",
+    ownerColumn: "event_task_id",
+    ownerId: taskId,
+    staffIds,
+  });
+
+  if (relationError) {
+    throw relationError;
+  }
+}
+
 function getRuleAnswerTime(rule: Pick<ConfigurableQuestionnaireRule, "field_key">, data: QuestionnaireData) {
   const value = data[rule.field_key];
 
@@ -1004,7 +1043,7 @@ export async function loadActiveQuestionnaireRules(supabase: SupabaseClient) {
   const { data, error } = await supabase
     .from("questionnaire_task_rules")
     .select(
-      "id, field_key, field_label, section_id, section_title, operator, expected_value, is_active, questionnaire_task_rule_tasks(id, override_description, override_scheduled_time, override_role_responsible, override_staff_id, override_visibility, sort_order, master_tasks(id, name, base_description, visibility, area, default_role, default_staff_id))",
+      "id, field_key, field_label, section_id, section_title, operator, expected_value, is_active, questionnaire_task_rule_tasks(id, override_description, override_scheduled_time, override_role_responsible, override_staff_id, override_visibility, sort_order, questionnaire_task_rule_task_staff(staff_id, sort_order), master_tasks(id, name, base_description, visibility, area, default_role, default_staff_id, required_responsible_count, master_task_default_staff(staff_id, sort_order)))",
     )
     .eq("is_active", true)
     .order("section_id", { ascending: true });
@@ -1039,6 +1078,14 @@ export async function buildConfigurableReactiveTasks(
           return null;
         }
 
+        const overrideStaffIds = getAssignedStaffIds(ruleTask.questionnaire_task_rule_task_staff);
+        const defaultStaffIds = getAssignedStaffIds(masterTask.master_task_default_staff);
+        const staffIds = overrideStaffIds.length
+          ? overrideStaffIds
+          : defaultStaffIds.length
+            ? defaultStaffIds
+            : ([ruleTask.override_staff_id || masterTask.default_staff_id].filter(Boolean) as string[]);
+
         return {
           event_id: eventId,
           task_name: masterTask.name,
@@ -1049,11 +1096,13 @@ export async function buildConfigurableReactiveTasks(
           scheduled_time: normalizeRuleTime(ruleTask.override_scheduled_time) ?? getRuleAnswerTime(rule, data),
           role_responsible:
             ruleTask.override_role_responsible || masterTask.default_role || "Coordinadora",
-          staff_id: ruleTask.override_staff_id || masterTask.default_staff_id || null,
+          staff_id: staffIds[0] ?? null,
+          staff_ids: staffIds,
           visibility: ruleTask.override_visibility || masterTask.visibility,
           status: "pendiente",
           is_manual_override: false,
           source_rule_task_id: ruleTask.id,
+          source_master_task_id: masterTask.id,
         } satisfies GeneratedEventTask;
       })
       .filter(Boolean) as GeneratedEventTask[];
@@ -1162,23 +1211,38 @@ export async function syncReactiveTasks(
   for (const { id, task } of tasksToUpdate) {
     const { error: updateError } = await supabase
       .from("event_tasks")
-      .update(task)
+      .update(toEventTaskRow(task))
       .eq("event_id", eventId)
       .eq("id", id);
 
     if (updateError) {
       throw updateError;
     }
+
+    await persistEventTaskStaff(id, task);
   }
 
   if (tasksToInsert.length === 0) {
     return tasks;
   }
 
-  const { error: insertError } = await supabase.from("event_tasks").insert(tasksToInsert);
+  const { data: insertedTasks, error: insertError } = await supabase
+    .from("event_tasks")
+    .insert(tasksToInsert.map(toEventTaskRow))
+    .select("id, source_rule_task_id");
 
   if (insertError) {
     throw insertError;
+  }
+
+  for (const insertedTask of insertedTasks ?? []) {
+    const sourceTask = tasksToInsert.find(
+      (task) => task.source_rule_task_id === insertedTask.source_rule_task_id,
+    );
+
+    if (sourceTask) {
+      await persistEventTaskStaff(insertedTask.id, sourceTask);
+    }
   }
 
   return tasks;
@@ -1221,7 +1285,8 @@ function buildBaseTaskFromTemplate(
   const isClosing =
     haystack.includes("cierre") || haystack.includes("desmontaje") || haystack.includes("salida");
 
-  return createTask(
+  return {
+    ...createTask(
     eventId,
     template.name,
     template.base_description || "Ejecutar la plantilla operativa segun el montaje del salon.",
@@ -1229,7 +1294,10 @@ function buildBaseTaskFromTemplate(
     template.default_role || "Coordinadora",
     template.visibility,
     template.default_staff_id,
-  );
+    getAssignedStaffIds(template.master_task_default_staff),
+    ),
+    source_master_task_id: template.id ?? null,
+  };
 }
 
 export function buildFallbackBaseTasks(eventId: string, schedule: EventSchedule) {
@@ -1286,7 +1354,7 @@ export async function syncBaseEventTasks(
 ) {
   const { data: templates, error: templatesError } = await supabase
     .from("master_tasks")
-    .select("name, base_description, visibility, area, default_role, default_staff_id");
+    .select("id, name, base_description, visibility, area, default_role, default_staff_id, required_responsible_count, master_task_default_staff(staff_id, sort_order)");
 
   if (templatesError) {
     throw templatesError;
@@ -1312,10 +1380,21 @@ export async function syncBaseEventTasks(
     throw deleteError;
   }
 
-  const { error: insertError } = await supabase.from("event_tasks").insert(tasks);
+  const { data: insertedTasks, error: insertError } = await supabase
+    .from("event_tasks")
+    .insert(tasks.map(toEventTaskRow))
+    .select("id, task_name");
 
   if (insertError) {
     throw insertError;
+  }
+
+  for (const insertedTask of insertedTasks ?? []) {
+    const sourceTask = tasks.find((task) => task.task_name === insertedTask.task_name);
+
+    if (sourceTask) {
+      await persistEventTaskStaff(insertedTask.id, sourceTask);
+    }
   }
 
   return tasks;

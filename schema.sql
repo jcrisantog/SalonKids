@@ -60,13 +60,32 @@ CREATE TABLE IF NOT EXISTS public.master_tasks (
   area TEXT, -- Comensales, Cocina, etc.
   default_role TEXT, -- Rol de staff por defecto
   default_staff_id UUID REFERENCES public.staff(id) ON DELETE SET NULL,
+  required_responsible_count INTEGER DEFAULT 1 CHECK (required_responsible_count > 0),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 ALTER TABLE public.master_tasks
-  ADD COLUMN IF NOT EXISTS default_staff_id UUID REFERENCES public.staff(id) ON DELETE SET NULL;
+  ADD COLUMN IF NOT EXISTS default_staff_id UUID REFERENCES public.staff(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS required_responsible_count INTEGER DEFAULT 1 CHECK (required_responsible_count > 0);
 
 CREATE UNIQUE INDEX IF NOT EXISTS master_tasks_name_unique ON public.master_tasks(name);
+
+CREATE TABLE IF NOT EXISTS public.master_task_default_staff (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  master_task_id UUID REFERENCES public.master_tasks(id) ON DELETE CASCADE NOT NULL,
+  staff_id UUID REFERENCES public.staff(id) ON DELETE CASCADE NOT NULL,
+  sort_order INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS master_task_default_staff_unique
+  ON public.master_task_default_staff(master_task_id, staff_id);
+
+INSERT INTO public.master_task_default_staff (master_task_id, staff_id, sort_order)
+SELECT id, default_staff_id, 0
+FROM public.master_tasks
+WHERE default_staff_id IS NOT NULL
+ON CONFLICT (master_task_id, staff_id) DO NOTHING;
 
 -- 7. Backlog de Tareas del Evento (Event Tasks)
 CREATE TABLE IF NOT EXISTS public.event_tasks (
@@ -81,11 +100,30 @@ CREATE TABLE IF NOT EXISTS public.event_tasks (
   visibility TEXT DEFAULT 'interna' CHECK (visibility IN ('interna', 'publica')),
   is_manual_override BOOLEAN DEFAULT FALSE, -- Para proteger cambios de la dueña
   source_rule_task_id UUID,
+  source_master_task_id UUID REFERENCES public.master_tasks(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 ALTER TABLE public.event_tasks
-  ADD COLUMN IF NOT EXISTS source_rule_task_id UUID;
+  ADD COLUMN IF NOT EXISTS source_rule_task_id UUID,
+  ADD COLUMN IF NOT EXISTS source_master_task_id UUID REFERENCES public.master_tasks(id) ON DELETE SET NULL;
+
+CREATE TABLE IF NOT EXISTS public.event_task_staff (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  event_task_id UUID REFERENCES public.event_tasks(id) ON DELETE CASCADE NOT NULL,
+  staff_id UUID REFERENCES public.staff(id) ON DELETE CASCADE NOT NULL,
+  sort_order INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS event_task_staff_unique
+  ON public.event_task_staff(event_task_id, staff_id);
+
+INSERT INTO public.event_task_staff (event_task_id, staff_id, sort_order)
+SELECT id, staff_id, 0
+FROM public.event_tasks
+WHERE staff_id IS NOT NULL
+ON CONFLICT (event_task_id, staff_id) DO NOTHING;
 
 -- 8. Documentos de Clientes
 CREATE TABLE IF NOT EXISTS public.client_documents (
@@ -96,7 +134,15 @@ CREATE TABLE IF NOT EXISTS public.client_documents (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 9. Reglas configurables del cuestionario
+-- 9. Configuracion administrativa global
+CREATE TABLE IF NOT EXISTS public.admin_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 10. Reglas configurables del cuestionario
 CREATE TABLE IF NOT EXISTS public.questionnaire_task_rules (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   field_key TEXT NOT NULL,
@@ -115,7 +161,7 @@ CREATE TABLE IF NOT EXISTS public.questionnaire_task_rules (
 CREATE UNIQUE INDEX IF NOT EXISTS questionnaire_task_rules_unique
   ON public.questionnaire_task_rules(field_key, operator, COALESCE(expected_value::text, 'null'));
 
--- 10. Tareas maestras generadas por cada regla del cuestionario
+-- 11. Tareas maestras generadas por cada regla del cuestionario
 CREATE TABLE IF NOT EXISTS public.questionnaire_task_rule_tasks (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   rule_id UUID REFERENCES public.questionnaire_task_rules(id) ON DELETE CASCADE NOT NULL,
@@ -134,6 +180,23 @@ ALTER TABLE public.questionnaire_task_rule_tasks
 
 CREATE UNIQUE INDEX IF NOT EXISTS questionnaire_task_rule_tasks_unique
   ON public.questionnaire_task_rule_tasks(rule_id, master_task_id);
+
+CREATE TABLE IF NOT EXISTS public.questionnaire_task_rule_task_staff (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  rule_task_id UUID REFERENCES public.questionnaire_task_rule_tasks(id) ON DELETE CASCADE NOT NULL,
+  staff_id UUID REFERENCES public.staff(id) ON DELETE CASCADE NOT NULL,
+  sort_order INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS questionnaire_task_rule_task_staff_unique
+  ON public.questionnaire_task_rule_task_staff(rule_task_id, staff_id);
+
+INSERT INTO public.questionnaire_task_rule_task_staff (rule_task_id, staff_id, sort_order)
+SELECT id, override_staff_id, 0
+FROM public.questionnaire_task_rule_tasks
+WHERE override_staff_id IS NOT NULL
+ON CONFLICT (rule_task_id, staff_id) DO NOTHING;
 
 DO $$
 BEGIN
@@ -157,10 +220,14 @@ ALTER TABLE public.clients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.questionnaire_data ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.master_tasks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.master_task_default_staff ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.event_tasks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.event_task_staff ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.client_documents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.admin_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.questionnaire_task_rules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.questionnaire_task_rule_tasks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.questionnaire_task_rule_task_staff ENABLE ROW LEVEL SECURITY;
 
 -- Políticas básicas (Dueña tiene acceso total)
 -- Nota: En un entorno real, esto se ajustaría según auth.uid() y roles.

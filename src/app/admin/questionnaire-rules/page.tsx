@@ -37,6 +37,13 @@ type MasterTask = {
   area: string | null;
   default_role: string | null;
   default_staff_id: string | null;
+  default_staff_ids?: string[];
+  required_responsible_count: number;
+  master_task_default_staff?: Array<{
+    staff_id: string;
+    sort_order: number | null;
+    staff?: StaffMember | null;
+  }>;
 };
 
 type StaffMember = {
@@ -53,6 +60,12 @@ type RuleTask = {
   override_scheduled_time: string;
   override_role_responsible: string;
   override_staff_id: string;
+  override_staff_ids: string[];
+  questionnaire_task_rule_task_staff?: Array<{
+    staff_id: string;
+    sort_order: number | null;
+    staff?: StaffMember | null;
+  }>;
   override_visibility: "" | "interna" | "publica";
   sort_order: number;
   master_tasks?: MasterTask | null;
@@ -82,9 +95,8 @@ type TaskCreationForm = {
   name: string;
   base_description: string;
   visibility: "interna" | "publica";
-  area: string;
-  default_role: string;
-  default_staff_id: string;
+  default_staff_ids: string[];
+  required_responsible_count: string;
 };
 
 const operatorLabels: Record<QuestionnaireRuleOperator, string> = {
@@ -105,6 +117,7 @@ const emptyTask: RuleTask = {
   override_scheduled_time: "",
   override_role_responsible: "",
   override_staff_id: "",
+  override_staff_ids: [],
   override_visibility: "",
   sort_order: 0,
 };
@@ -121,10 +134,29 @@ const emptyTaskCreationForm: TaskCreationForm = {
   name: "",
   base_description: "",
   visibility: "interna",
-  area: "",
-  default_role: "",
-  default_staff_id: "",
+  default_staff_ids: [],
+  required_responsible_count: "1",
 };
+
+function getSelectValues(select: HTMLSelectElement) {
+  return Array.from(select.selectedOptions).map((option) => option.value);
+}
+
+function getRelationStaffIds(
+  relations?: Array<{ staff_id: string; sort_order: number | null }> | null,
+  fallback?: string | null,
+) {
+  const ids = [...(relations ?? [])]
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    .map((relation) => relation.staff_id)
+    .filter(Boolean);
+
+  return ids.length ? ids : fallback ? [fallback] : [];
+}
+
+function getStaffNames(ids: string[], staffById: Map<string, StaffMember>) {
+  return ids.map((id) => staffById.get(id)?.name ?? "Responsable no encontrado").join(", ");
+}
 
 function sortMasterTasks(tasks: MasterTask[]) {
   return [...tasks].sort((a, b) => {
@@ -261,6 +293,7 @@ export default function QuestionnaireRulesPage() {
       }),
     [staff],
   );
+  const staffById = useMemo(() => new Map(staff.map((member) => [member.id, member])), [staff]);
 
   function resetForm() {
     setEditingId(null);
@@ -305,6 +338,10 @@ export default function QuestionnaireRulesPage() {
           override_scheduled_time: task.override_scheduled_time?.slice(0, 5) ?? "",
           override_role_responsible: task.override_role_responsible ?? "",
           override_staff_id: task.override_staff_id ?? "",
+          override_staff_ids: getRelationStaffIds(
+            task.questionnaire_task_rule_task_staff,
+            task.override_staff_id,
+          ),
           override_visibility: task.override_visibility ?? "",
           sort_order: task.sort_order ?? index,
           master_tasks: task.master_tasks,
@@ -365,9 +402,8 @@ export default function QuestionnaireRulesPage() {
         name: taskCreationForm.name,
         base_description: taskCreationForm.base_description,
         visibility: taskCreationForm.visibility,
-        area: taskCreationForm.area,
-        default_role: taskCreationForm.default_role,
-        default_staff_id: taskCreationForm.default_staff_id || null,
+        default_staff_ids: taskCreationForm.default_staff_ids,
+        required_responsible_count: taskCreationForm.required_responsible_count,
       };
       const result = (await adminFetch("/api/admin/tasks", {
         method: "POST",
@@ -576,7 +612,7 @@ export default function QuestionnaireRulesPage() {
           </div>
 
           {form.tasks.map((task, index) => (
-            <div key={index} className="grid gap-3 rounded-md border border-white/10 bg-zinc-950/60 p-4 lg:grid-cols-[1fr_120px_160px_190px_150px_44px]">
+            <div key={index} className="grid gap-3 rounded-md border border-white/10 bg-zinc-950/60 p-4 lg:grid-cols-[1fr_120px_190px_150px_44px]">
               <Field label="Tarea maestra">
                 <select
                   value={task.master_task_id}
@@ -593,7 +629,7 @@ export default function QuestionnaireRulesPage() {
                       value={masterTask.id}
                       disabled={selectedTaskIds.includes(masterTask.id) && task.master_task_id !== masterTask.id}
                     >
-                      {masterTask.area ? `${masterTask.area} - ` : ""}{masterTask.name}
+                      {masterTask.name}
                     </option>
                   ))}
                 </select>
@@ -617,24 +653,19 @@ export default function QuestionnaireRulesPage() {
                   className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-purple-300"
                 />
               </Field>
-              <Field label="Responsable">
-                <input
-                  value={task.override_role_responsible}
-                  onChange={(event) => updateTask(index, { override_role_responsible: event.target.value })}
-                  className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-purple-300"
-                  placeholder="Coordinadora"
-                />
-              </Field>
               <Field label="Staff asignado">
                 <select
-                  value={task.override_staff_id}
-                  onChange={(event) => updateTask(index, { override_staff_id: event.target.value })}
-                  className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-purple-300"
+                  multiple
+                  size={Math.min(Math.max(sortedStaff.length, 3), 5)}
+                  value={task.override_staff_ids}
+                  onChange={(event) =>
+                    updateTask(index, { override_staff_ids: getSelectValues(event.target) })
+                  }
+                  className="min-h-24 w-full rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-white outline-none focus:border-purple-300"
                 >
-                  <option value="">Default</option>
                   {sortedStaff.map((member) => (
                     <option key={member.id} value={member.id}>
-                      {member.name} - {member.primary_role}
+                      {member.name}
                       {member.is_active ? "" : " (inactivo)"}
                     </option>
                   ))}
@@ -661,7 +692,7 @@ export default function QuestionnaireRulesPage() {
               >
                 <X className="h-4 w-4" />
               </button>
-              <label className="lg:col-span-6">
+              <label className="lg:col-span-5">
                 <span className="mb-2 block text-sm font-medium text-gray-300">Descripcion override</span>
                 <textarea
                   value={task.override_description}
@@ -814,7 +845,21 @@ export default function QuestionnaireRulesPage() {
                         {[...rule.questionnaire_task_rule_tasks]
                           .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
                           .map((task) => (
-                          <p key={task.id}>{task.master_tasks?.name ?? "Tarea sin catalogo"}</p>
+                          <p key={task.id}>
+                            {task.master_tasks?.name ?? "Tarea sin catalogo"}
+                            {getRelationStaffIds(
+                              task.questionnaire_task_rule_task_staff,
+                              task.override_staff_id,
+                            ).length
+                              ? ` - ${getStaffNames(
+                                  getRelationStaffIds(
+                                    task.questionnaire_task_rule_task_staff,
+                                    task.override_staff_id,
+                                  ),
+                                  staffById,
+                                )}`
+                              : ""}
+                          </p>
                         ))}
                       </div>
                     </td>
@@ -945,14 +990,6 @@ function TaskCreationModal({
               required
             />
           </Field>
-          <Field label="Area">
-            <input
-              value={form.area}
-              onChange={(event) => onChange({ area: event.target.value })}
-              className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-purple-300"
-              placeholder="Cocina, Coordinacion..."
-            />
-          </Field>
           <Field label="Visibilidad">
             <select
               value={form.visibility}
@@ -963,28 +1000,30 @@ function TaskCreationModal({
               <option value="publica">Publica</option>
             </select>
           </Field>
-          <Field label="Rol predeterminado">
-            <input
-              value={form.default_role}
-              onChange={(event) => onChange({ default_role: event.target.value })}
-              className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-purple-300"
-              placeholder="Coordinadora"
-            />
-          </Field>
           <Field label="Staff predeterminado">
             <select
-              value={form.default_staff_id}
-              onChange={(event) => onChange({ default_staff_id: event.target.value })}
-              className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-purple-300"
+              multiple
+              size={Math.min(Math.max(staff.length, 3), 5)}
+              value={form.default_staff_ids}
+              onChange={(event) => onChange({ default_staff_ids: getSelectValues(event.target) })}
+              className="min-h-24 w-full rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-white outline-none focus:border-purple-300"
             >
-              <option value="">Sin responsable fijo</option>
               {staff.map((member) => (
                 <option key={member.id} value={member.id}>
-                  {member.name} - {member.primary_role}
+                  {member.name}
                   {member.is_active ? "" : " (inactivo)"}
                 </option>
               ))}
             </select>
+          </Field>
+          <Field label="Cantidad de responsables">
+            <input
+              type="number"
+              min={1}
+              value={form.required_responsible_count}
+              onChange={(event) => onChange({ required_responsible_count: event.target.value })}
+              className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-purple-300"
+            />
           </Field>
           <label className="block sm:col-span-2">
             <span className="mb-2 block text-sm font-medium text-gray-300">Descripcion base</span>

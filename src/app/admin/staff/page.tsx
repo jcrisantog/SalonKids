@@ -16,13 +16,11 @@ type StaffMember = {
 
 type StaffForm = {
   name: string;
-  primary_role: string;
   is_active: boolean;
 };
 
 const emptyForm: StaffForm = {
   name: "",
-  primary_role: "",
   is_active: true,
 };
 
@@ -110,7 +108,6 @@ export default function StaffPage() {
     setEditingId(member.id);
     setForm({
       name: member.name,
-      primary_role: member.primary_role,
       is_active: member.is_active,
     });
   }
@@ -175,7 +172,7 @@ export default function StaffPage() {
           <p className="text-sm font-semibold uppercase tracking-wider text-purple-300">Catalogos</p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight">Personal / Staff</h1>
           <p className="mt-2 text-gray-400">
-            Administra nombres, roles operativos y disponibilidad para asignaciones.
+            Administra nombres y disponibilidad para asignaciones.
           </p>
         </div>
         <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.04] px-4 py-3">
@@ -187,24 +184,13 @@ export default function StaffPage() {
         </div>
       </header>
 
-      <form onSubmit={handleSubmit} className="grid gap-4 rounded-lg border border-white/10 bg-white/[0.04] p-5 lg:grid-cols-[1fr_220px_150px_auto] lg:items-end">
+      <form onSubmit={handleSubmit} className="grid gap-4 rounded-lg border border-white/10 bg-white/[0.04] p-5 lg:grid-cols-[1fr_150px_auto] lg:items-end">
         <Field label="Nombre">
           <input
             value={form.name}
             onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
             className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-purple-300"
             placeholder="Luis Santiago"
-            required
-          />
-        </Field>
-        <Field label="Rol principal">
-          <input
-            value={form.primary_role}
-            onChange={(event) =>
-              setForm((current) => ({ ...current, primary_role: event.target.value }))
-            }
-            className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-purple-300"
-            placeholder="DJ, Coordinadora..."
             required
           />
         </Field>
@@ -256,11 +242,10 @@ export default function StaffPage() {
           <div className="p-8 text-center text-gray-500">Aun no hay personal registrado.</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm">
+            <table className="w-full min-w-[560px] text-left text-sm">
               <thead className="border-b border-white/10 bg-white/[0.04] text-xs uppercase tracking-wider text-gray-500">
                 <tr>
                   <th className="px-5 py-4">Nombre</th>
-                  <th className="px-5 py-4">Rol</th>
                   <th className="px-5 py-4">Estado</th>
                   <th className="px-5 py-4 text-right">Acciones</th>
                 </tr>
@@ -269,7 +254,6 @@ export default function StaffPage() {
                 {staff.map((member) => (
                   <tr key={member.id} className="transition hover:bg-white/[0.03]">
                     <td className="px-5 py-4 font-medium text-white">{member.name}</td>
-                    <td className="px-5 py-4 text-gray-300">{member.primary_role}</td>
                     <td className="px-5 py-4">
                       <span className={`inline-flex items-center gap-2 rounded-md px-2 py-1 text-xs font-semibold ${member.is_active ? "bg-emerald-400/10 text-emerald-200" : "bg-zinc-500/10 text-zinc-400"}`}>
                         {member.is_active ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}

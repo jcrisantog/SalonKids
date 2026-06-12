@@ -15,6 +15,13 @@ type MasterTask = {
   area: string | null;
   default_role: string | null;
   default_staff_id: string | null;
+  default_staff_ids?: string[];
+  required_responsible_count: number;
+  master_task_default_staff?: Array<{
+    staff_id: string;
+    sort_order: number | null;
+    staff?: StaffMember | null;
+  }>;
   created_at: string;
 };
 
@@ -31,7 +38,8 @@ type TaskForm = {
   visibility: "interna" | "publica";
   area: string;
   default_role: string;
-  default_staff_id: string;
+  default_staff_ids: string[];
+  required_responsible_count: string;
 };
 
 const emptyForm: TaskForm = {
@@ -40,8 +48,34 @@ const emptyForm: TaskForm = {
   visibility: "interna",
   area: "",
   default_role: "",
-  default_staff_id: "",
+  default_staff_ids: [],
+  required_responsible_count: "1",
 };
+
+function getSelectValues(select: HTMLSelectElement) {
+  return Array.from(select.selectedOptions).map((option) => option.value);
+}
+
+function getTaskResponsibleIds(task: MasterTask) {
+  const relationIds = [...(task.master_task_default_staff ?? [])]
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    .map((relation) => relation.staff_id)
+    .filter(Boolean);
+
+  if (relationIds.length > 0) {
+    return relationIds;
+  }
+
+  return task.default_staff_id ? [task.default_staff_id] : [];
+}
+
+function getTaskResponsibleLabel(task: MasterTask, staffById: Map<string, StaffMember>) {
+  const names = getTaskResponsibleIds(task).map(
+    (staffId) => staffById.get(staffId)?.name ?? "Responsable no encontrado",
+  );
+
+  return names.length ? names.join(", ") : "Sin responsable";
+}
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState<MasterTask[]>([]);
@@ -81,10 +115,9 @@ export default function TasksPage() {
         matchesSearch(searchQuery, [
           task.name,
           task.base_description,
-          task.area,
-          task.default_role,
           task.visibility === "publica" ? "Publica" : "Interna",
-          task.default_staff_id ? staffById.get(task.default_staff_id)?.name : null,
+          getTaskResponsibleLabel(task, staffById),
+          String(task.required_responsible_count ?? 1),
         ]),
       ),
     [searchQuery, staffById, tasks],
@@ -167,7 +200,8 @@ export default function TasksPage() {
       visibility: task.visibility,
       area: task.area ?? "",
       default_role: task.default_role ?? "",
-      default_staff_id: task.default_staff_id ?? "",
+      default_staff_ids: getTaskResponsibleIds(task),
+      required_responsible_count: String(task.required_responsible_count ?? 1),
     });
     window.requestAnimationFrame(() => {
       formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -234,7 +268,7 @@ export default function TasksPage() {
           <p className="text-sm font-semibold uppercase tracking-wider text-green-300">Catalogos</p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight">Tareas Maestras</h1>
           <p className="mt-2 text-gray-400">
-            Define plantillas operativas con area, rol por defecto y visibilidad.
+            Define plantillas operativas con responsable asignado y visibilidad.
           </p>
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -244,98 +278,99 @@ export default function TasksPage() {
       </header>
 
       <form ref={formRef} onSubmit={handleSubmit} className="rounded-lg border border-white/10 bg-white/[0.04] p-5">
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Field label="Nombre de tarea">
-            <input
-              value={form.name}
-              onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
-              className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-green-300"
-              placeholder="Montar mesa de pastel"
-              required
-            />
-          </Field>
-          <div className="grid gap-4 sm:grid-cols-4">
-            <Field label="Area">
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(360px,440px)]">
+          <div className="grid gap-4">
+            <Field label="Nombre de tarea">
               <input
-                value={form.area}
-                onChange={(event) => setForm((current) => ({ ...current, area: event.target.value }))}
+                value={form.name}
+                onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
                 className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-green-300"
-                placeholder="Comensales"
+                placeholder="Montar mesa de pastel"
+                required
               />
             </Field>
-            <Field label="Rol default">
-              <input
-                value={form.default_role}
+            <Field label="Descripcion estandar">
+              <textarea
+                value={form.base_description}
                 onChange={(event) =>
-                  setForm((current) => ({ ...current, default_role: event.target.value }))
+                  setForm((current) => ({ ...current, base_description: event.target.value }))
                 }
-                className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-green-300"
-                placeholder="Apoyo"
+                className="min-h-36 w-full resize-y rounded-md border border-white/10 bg-zinc-950 px-3 py-3 text-white outline-none focus:border-green-300"
+                placeholder="Instrucciones operativas que se copiaran al backlog del evento."
               />
             </Field>
-            <Field label="Responsable default">
+          </div>
+
+          <div className="grid gap-4 content-start">
+            <Field label="Responsables default">
               <select
-                value={form.default_staff_id}
+                multiple
+                size={Math.min(Math.max(sortedStaff.length, 4), 7)}
+                value={form.default_staff_ids}
                 onChange={(event) =>
-                  setForm((current) => ({ ...current, default_staff_id: event.target.value }))
+                  setForm((current) => ({ ...current, default_staff_ids: getSelectValues(event.target) }))
                 }
-                className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-green-300"
+                className="h-40 w-full rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-white outline-none focus:border-green-300"
               >
-                <option value="">Sin responsable</option>
                 {sortedStaff.map((member) => (
                   <option key={member.id} value={member.id}>
-                    {member.name} - {member.primary_role}
+                    {member.name}
                     {member.is_active ? "" : " (inactivo)"}
                   </option>
                 ))}
               </select>
             </Field>
-            <Field label="Visibilidad">
-              <select
-                value={form.visibility}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    visibility: event.target.value as TaskForm["visibility"],
-                  }))
-                }
-                className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-green-300"
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Cantidad">
+                <input
+                  type="number"
+                  min={1}
+                  value={form.required_responsible_count}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, required_responsible_count: event.target.value }))
+                  }
+                  className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-green-300"
+                />
+              </Field>
+              <Field label="Visibilidad">
+                <select
+                  value={form.visibility}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      visibility: event.target.value as TaskForm["visibility"],
+                    }))
+                  }
+                  className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-green-300"
+                >
+                  <option value="interna">Interna</option>
+                  <option value="publica">Publica</option>
+                </select>
+              </Field>
+            </div>
+
+            <div className="flex gap-2 sm:justify-end">
+              <button
+                type="submit"
+                disabled={saving}
+                className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-md bg-green-300 px-4 font-semibold text-zinc-950 transition hover:bg-green-200 disabled:opacity-60 sm:flex-none sm:min-w-44"
               >
-                <option value="interna">Interna</option>
-                <option value="publica">Publica</option>
-              </select>
-            </Field>
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : editingId ? <Save className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                {editingId ? "Guardar cambios" : "Agregar tarea"}
+              </button>
+              {editingId ? (
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="grid h-11 w-11 place-items-center rounded-md border border-white/10 text-gray-300 transition hover:bg-white/10"
+                  title="Cancelar edicion"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              ) : null}
+            </div>
           </div>
-        </div>
-        <Field label="Descripcion estandar">
-          <textarea
-            value={form.base_description}
-            onChange={(event) =>
-              setForm((current) => ({ ...current, base_description: event.target.value }))
-            }
-            className="mt-2 min-h-24 w-full resize-y rounded-md border border-white/10 bg-zinc-950 px-3 py-3 text-white outline-none focus:border-green-300"
-            placeholder="Instrucciones operativas que se copiaran al backlog del evento."
-          />
-        </Field>
-        <div className="mt-4 flex gap-2">
-          <button
-            type="submit"
-            disabled={saving}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-green-300 px-4 font-semibold text-zinc-950 transition hover:bg-green-200 disabled:opacity-60"
-          >
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : editingId ? <Save className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-            {editingId ? "Guardar cambios" : "Agregar tarea"}
-          </button>
-          {editingId ? (
-            <button
-              type="button"
-              onClick={resetForm}
-              className="grid h-11 w-11 place-items-center rounded-md border border-white/10 text-gray-300 transition hover:bg-white/10"
-              title="Cancelar edicion"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          ) : null}
         </div>
       </form>
 
@@ -355,7 +390,7 @@ export default function TasksPage() {
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 className="h-full min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-gray-600"
-                placeholder="Nombre, area, rol, responsable..."
+                placeholder="Nombre, responsable, visibilidad..."
               />
               {hasSearch ? (
                 <button
@@ -396,13 +431,12 @@ export default function TasksPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[920px] text-left text-sm">
+            <table className="w-full min-w-[760px] text-left text-sm">
               <thead className="border-b border-white/10 bg-white/[0.04] text-xs uppercase tracking-wider text-gray-500">
                 <tr>
                   <th className="px-5 py-4">Tarea</th>
-                  <th className="px-5 py-4">Area</th>
-                  <th className="px-5 py-4">Responsable</th>
-                  <th className="px-5 py-4">Rol</th>
+                  <th className="px-5 py-4">Responsables</th>
+                  <th className="px-5 py-4">Cantidad</th>
                   <th className="px-5 py-4">Visibilidad</th>
                   <th className="px-5 py-4 text-right">Acciones</th>
                 </tr>
@@ -416,13 +450,12 @@ export default function TasksPage() {
                         {task.base_description || "Sin descripcion estandar."}
                       </p>
                     </td>
-                    <td className="px-5 py-4 text-gray-300">{task.area || "Sin area"}</td>
                     <td className="px-5 py-4 text-gray-300">
-                      {task.default_staff_id
-                        ? staffById.get(task.default_staff_id)?.name ?? "Responsable no encontrado"
-                        : task.default_role || "Sin asignar"}
+                      {getTaskResponsibleLabel(task, staffById)}
                     </td>
-                    <td className="px-5 py-4 text-gray-300">{task.default_role || "Sin rol"}</td>
+                    <td className="px-5 py-4 text-gray-300">
+                      {task.required_responsible_count ?? 1}
+                    </td>
                     <td className="px-5 py-4">
                       <span className={`inline-flex items-center gap-2 rounded-md px-2 py-1 text-xs font-semibold ${task.visibility === "publica" ? "bg-cyan-400/10 text-cyan-200" : "bg-purple-400/10 text-purple-200"}`}>
                         {task.visibility === "publica" ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}

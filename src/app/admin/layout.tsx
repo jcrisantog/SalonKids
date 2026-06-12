@@ -4,10 +4,10 @@ import { useEffect } from "react";
 import {
   Calendar,
   CheckSquare,
+  FileText,
   LayoutDashboard,
   LogOut,
   PlugZap,
-  Rows3,
   SlidersHorizontal,
   Sparkles,
   Users,
@@ -48,7 +48,6 @@ export default function AdminLayout({
         <nav className="flex flex-1 items-center gap-2 overflow-x-auto px-2 py-3 lg:mt-4 lg:block lg:space-y-2 lg:px-4 lg:py-0">
           <NavLink href="/admin/dashboard" icon={<LayoutDashboard size={20} />} label="Dashboard" />
           <NavLink href="/admin/events" icon={<Calendar size={20} />} label="Eventos" />
-          <NavLink href="/admin/live" icon={<Rows3 size={20} />} label="Live Matrix" />
           <NavLink href="/admin/integrations" icon={<PlugZap size={20} />} label="Integraciones" />
           <div className="hidden px-2 pb-2 pt-4 text-xs font-semibold uppercase tracking-wider text-gray-500 lg:block">
             Catalogos
@@ -56,6 +55,7 @@ export default function AdminLayout({
           <NavLink href="/admin/staff" icon={<Users size={20} />} label="Personal / Staff" />
           <NavLink href="/admin/tasks" icon={<CheckSquare size={20} />} label="Tareas Maestras" />
           <NavLink href="/admin/questionnaire-rules" icon={<SlidersHorizontal size={20} />} label="Reglas Cuestionario" />
+          <NavLink href="/admin/guidelines-notices" icon={<FileText size={20} />} label="Lineamientos y Avisos" />
         </nav>
 
         <div className="hidden border-t border-white/5 p-4 lg:block">

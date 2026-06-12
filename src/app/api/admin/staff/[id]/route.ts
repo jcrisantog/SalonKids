@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-api";
 import { supabaseAdmin } from "@/lib/supabase-server";
 
+const DEFAULT_STAFF_ROLE = "General";
+
 type RouteParams = {
   params: Promise<{
     id: string;
@@ -25,15 +27,12 @@ export async function PATCH(request: Request, context: RouteParams) {
 
   const payload = {
     name: body.name?.trim(),
-    primary_role: body.primary_role?.trim(),
+    primary_role: body.primary_role?.trim() || DEFAULT_STAFF_ROLE,
     is_active: body.is_active,
   };
 
-  if (!payload.name || !payload.primary_role) {
-    return NextResponse.json(
-      { error: "Nombre y rol principal son obligatorios." },
-      { status: 400 },
-    );
+  if (!payload.name) {
+    return NextResponse.json({ error: "El nombre es obligatorio." }, { status: 400 });
   }
 
   const { data, error } = await supabaseAdmin

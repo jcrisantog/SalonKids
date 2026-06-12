@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { requireAdmin } from "@/lib/admin-api";
 import { getQuestionnaireFieldCatalog } from "@/lib/questionnaire-schema";
+import { normalizeStaffIds, replaceStaffRelations, validateStaffIds } from "@/lib/staff-assignments";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import type { QuestionnaireRuleOperator } from "@/lib/rule-engine";
 
@@ -17,6 +18,7 @@ type RuleTaskPayload = {
   override_scheduled_time?: string;
   override_role_responsible?: string;
   override_staff_id?: string | null;
+  override_staff_ids?: string[];
   override_visibility?: "interna" | "publica" | "";
   sort_order?: number;
 };
@@ -51,25 +53,12 @@ function normalizeTime(value?: string) {
   return value.length === 5 ? `${value}:00` : value;
 }
 
-async function validateStaffIds(tasks: RuleTaskPayload[]) {
+async function validateRuleStaffIds(tasks: RuleTaskPayload[]) {
   const staffIds = Array.from(
-    new Set(tasks.map((task) => task.override_staff_id).filter(Boolean) as string[]),
+    new Set(tasks.flatMap((task) => normalizeStaffIds(task.override_staff_ids ?? task.override_staff_id))),
   );
 
-  if (staffIds.length === 0) {
-    return null;
-  }
-
-  const { data, error } = await supabaseAdmin
-    .from("staff")
-    .select("id")
-    .in("id", staffIds);
-
-  if (error || (data ?? []).length !== staffIds.length) {
-    return "Selecciona responsables validos del catalogo de personal.";
-  }
-
-  return null;
+  return validateStaffIds(staffIds);
 }
 
 function validatePayload(payload: RulePayload) {
@@ -114,7 +103,7 @@ export async function PATCH(request: Request, context: RouteParams) {
     return NextResponse.json({ error: validation.error }, { status: 400 });
   }
 
-  const staffError = await validateStaffIds(validation.tasks ?? []);
+  const staffError = await validateRuleStaffIds(validation.tasks ?? []);
 
   if (staffError) {
     return NextResponse.json({ error: staffError }, { status: 400 });
@@ -147,23 +136,43 @@ export async function PATCH(request: Request, context: RouteParams) {
     return NextResponse.json({ error: "No se pudieron reemplazar las tareas." }, { status: 500 });
   }
 
-  const relationRows = (validation.tasks ?? []).map((task, index) => ({
+  const relationRows = (validation.tasks ?? []).map((task, index) => {
+    const overrideStaffIds = normalizeStaffIds(task.override_staff_ids ?? task.override_staff_id);
+
+    return {
     rule_id: id,
     master_task_id: task.master_task_id,
     override_description: cleanText(task.override_description),
     override_scheduled_time: normalizeTime(task.override_scheduled_time),
     override_role_responsible: cleanText(task.override_role_responsible),
-    override_staff_id: task.override_staff_id || null,
+    override_staff_id: overrideStaffIds[0] ?? null,
     override_visibility: task.override_visibility || null,
     sort_order: index,
-  }));
+    };
+  });
 
-  const { error: insertTasksError } = await supabaseAdmin
+  const { data: insertedTasks, error: insertTasksError } = await supabaseAdmin
     .from("questionnaire_task_rule_tasks")
-    .insert(relationRows);
+    .insert(relationRows)
+    .select("id, sort_order");
 
   if (insertTasksError) {
     return NextResponse.json({ error: "No se pudieron asociar las tareas. Verifica que no esten duplicadas." }, { status: 500 });
+  }
+
+  for (const relation of insertedTasks ?? []) {
+    const taskPayload = (validation.tasks ?? [])[relation.sort_order ?? 0];
+    const overrideStaffIds = normalizeStaffIds(taskPayload?.override_staff_ids ?? taskPayload?.override_staff_id);
+    const relationError = await replaceStaffRelations({
+      table: "questionnaire_task_rule_task_staff",
+      ownerColumn: "rule_task_id",
+      ownerId: relation.id,
+      staffIds: overrideStaffIds,
+    });
+
+    if (relationError) {
+      return NextResponse.json({ error: "No se pudieron guardar los responsables override." }, { status: 500 });
+    }
   }
 
   return NextResponse.json({ ok: true });

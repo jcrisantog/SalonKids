@@ -47,6 +47,12 @@ type EventTask = {
   description: string | null;
   scheduled_time: string | null;
   staff_id: string | null;
+  staff_ids?: string[];
+  event_task_staff?: Array<{
+    staff_id: string;
+    sort_order: number | null;
+    staff?: StaffMember | null;
+  }>;
   role_responsible: string | null;
   status: TaskStatus;
   visibility: "interna" | "publica";
@@ -60,6 +66,19 @@ const columns: Array<{ id: TaskStatus; title: string; tone: string }> = [
 ];
 
 const matrixRoles = ["DJ", "Animacion", "Coordinadora", "Apoyo", "Cocina"];
+
+function getTaskResponsibleIds(task: EventTask) {
+  const relationIds = [...(task.event_task_staff ?? [])]
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    .map((relation) => relation.staff_id)
+    .filter(Boolean);
+
+  if (relationIds.length > 0) {
+    return relationIds;
+  }
+
+  return task.staff_id ? [task.staff_id] : [];
+}
 
 export default function LiveOperationsPage() {
   const [events, setEvents] = useState<EventRecord[]>([]);
@@ -192,6 +211,7 @@ export default function LiveOperationsPage() {
           task_name: nextTask.task_name,
           description: nextTask.description ?? "",
           scheduled_time: nextTask.scheduled_time?.slice(0, 5) ?? "",
+          staff_ids: nextTask.staff_ids ?? getTaskResponsibleIds(nextTask),
           staff_id: nextTask.staff_id,
           role_responsible: nextTask.role_responsible ?? "",
           status: nextTask.status,
@@ -365,10 +385,12 @@ export default function LiveOperationsPage() {
                       key={task.id}
                       task={task}
                       staff={activeStaff}
-                      staffName={task.staff_id ? staffById.get(task.staff_id)?.name : null}
+                      staffName={getTaskResponsibleIds(task)
+                        .map((staffId) => staffById.get(staffId)?.name ?? "Responsable no encontrado")
+                        .join(", ")}
                       saving={savingTaskId === task.id}
                       onDragStart={() => setDragTaskId(task.id)}
-                      onAssign={(staffId) => patchTask(task, { staff_id: staffId || null })}
+                      onAssign={(staffId) => patchTask(task, { staff_id: staffId || null, staff_ids: staffId ? [staffId] : [] })}
                     />
                   ))}
                 </div>
@@ -425,19 +447,21 @@ export default function LiveOperationsPage() {
                       <td key={role} className="px-3 py-3 align-top">
                         {rowTasks
                           .filter((task) => {
-                            const staffMember = task.staff_id ? staffById.get(task.staff_id) : null;
-                            const haystack = `${task.role_responsible ?? ""} ${staffMember?.primary_role ?? ""}`;
+                            const staffMembers = getTaskResponsibleIds(task).map((staffId) => staffById.get(staffId));
+                            const haystack = `${task.role_responsible ?? ""} ${staffMembers.map((member) => member?.primary_role ?? "").join(" ")}`;
 
                             return haystack.toLowerCase().includes(role.toLowerCase());
                           })
                           .map((task) => {
-                            const staffMember = task.staff_id ? staffById.get(task.staff_id) : null;
+                            const staffNames = getTaskResponsibleIds(task)
+                              .map((staffId) => staffById.get(staffId)?.name ?? "Responsable no encontrado")
+                              .join(", ");
 
                             return (
                               <div key={task.id} className="mb-2 last:mb-0">
                                 <p className="font-medium">{task.task_name}</p>
                                 <p className="text-xs text-gray-400">
-                                  {staffMember?.name || task.role_responsible || "Sin asignar"}
+                                  {staffNames || task.role_responsible || "Sin asignar"}
                                 </p>
                               </div>
                             );

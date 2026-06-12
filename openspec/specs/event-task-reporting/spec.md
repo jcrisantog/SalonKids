@@ -1,15 +1,30 @@
 ## ADDED Requirements
 
+### Requirement: Event task editing hides responsible role
+El sistema SHALL permitir crear y editar Tareas del Evento sin mostrar ni requerir Rol responsable y permitiendo seleccionar multiples responsables por persona.
+
+#### Scenario: Crear tarea de evento sin rol responsable
+- **WHEN** la administradora captura una tarea de evento con nombre, hora, responsables por persona opcionales, estado, descripcion y visibilidad
+- **THEN** el sistema guarda la tarea sin pedir Rol responsable
+
+#### Scenario: Editar tarea de evento existente
+- **WHEN** la administradora edita una tarea que conserva `role_responsible` en datos existentes
+- **THEN** el sistema permite guardar cambios visibles sin mostrar ni requerir Rol responsable
+
+#### Scenario: Tabla de tareas de evento sin columna de rol
+- **WHEN** la administradora consulta las tareas de un evento
+- **THEN** el sistema no muestra una columna de Rol responsable
+
 ### Requirement: Admin can filter event tasks by responsible and visibility
-El sistema SHALL permitir que una administradora filtre la tabla de tareas de un evento por responsable asignado y visibilidad.
+El sistema SHALL permitir que una administradora filtre la tabla de tareas de un evento por cualquiera de sus responsables asignados y visibilidad.
 
 #### Scenario: Filtrar por responsable asignado
 - **WHEN** una administradora selecciona una persona del catalogo de responsables en la pantalla de tareas del evento
-- **THEN** el sistema muestra solo las tareas cuyo `staff_id` corresponde a esa persona
+- **THEN** el sistema muestra las tareas donde esa persona aparece en la lista de responsables asignados
 
 #### Scenario: Filtrar tareas sin responsable
 - **WHEN** una administradora selecciona el filtro de tareas sin responsable
-- **THEN** el sistema muestra solo las tareas que no tienen `staff_id`
+- **THEN** el sistema muestra solo las tareas que no tienen responsables asignados
 
 #### Scenario: Filtrar por visibilidad interna
 - **WHEN** una administradora selecciona visibilidad interna
@@ -28,15 +43,47 @@ El sistema SHALL permitir que una administradora filtre la tabla de tareas de un
 - **THEN** el sistema vuelve a mostrar todas las tareas del evento
 
 ### Requirement: Filtered event tasks can be exported as a styled PDF
-El sistema SHALL permitir que una administradora genere un PDF estetico y colorido con la informacion visible despues de aplicar filtros.
+El sistema SHALL permitir que una administradora genere un PDF estetico y colorido con la informacion visible despues de aplicar filtros, y SHALL permitir anexar los Lineamientos y Avisos guardados cuando la administradora lo confirme.
 
 #### Scenario: Generar PDF con filtros activos
 - **WHEN** una administradora aplica filtros y solicita generar PDF
 - **THEN** el sistema genera un PDF con solo las tareas filtradas
 
+#### Scenario: PDF pregunta por lineamientos guardados
+- **WHEN** una administradora solicita generar PDF y existen Lineamientos y Avisos guardados
+- **THEN** el sistema pregunta si desea incluirlos en el PDF antes de generar el documento
+
+#### Scenario: PDF incluye lineamientos confirmados
+- **WHEN** la administradora confirma que desea incluir Lineamientos y Avisos
+- **THEN** el PDF generado incluye una seccion titulada "Lineamientos y Avisos" con el contenido enriquecido guardado
+
+#### Scenario: PDF respeta formato enriquecido permitido
+- **WHEN** los Lineamientos y Avisos guardados contienen formato permitido como parrafos, negritas, cursivas, encabezados, listas o enlaces
+- **THEN** el PDF muestra ese formato de forma legible y consistente con el diseno del documento
+
+#### Scenario: PDF no ejecuta contenido inseguro
+- **WHEN** los Lineamientos y Avisos guardados contienen o intentan contener HTML inseguro
+- **THEN** el PDF no ejecuta scripts ni conserva atributos o URLs peligrosas
+
+#### Scenario: PDF omite lineamientos rechazados
+- **WHEN** la administradora elige generar el PDF sin Lineamientos y Avisos
+- **THEN** el PDF se genera sin esa seccion adicional
+
+#### Scenario: PDF sin lineamientos guardados
+- **WHEN** la administradora solicita generar PDF y no hay Lineamientos y Avisos guardados
+- **THEN** el sistema genera el PDF sin preguntar por lineamientos
+
 #### Scenario: PDF incluye campos requeridos
 - **WHEN** el sistema genera el PDF
 - **THEN** el documento incluye columnas Hora, Tarea, Descripcion y Responsable
+
+#### Scenario: PDF usa personas asignadas como responsables
+- **WHEN** el sistema genera el PDF y una tarea tiene uno o varios responsables asignados
+- **THEN** la columna Responsable muestra los nombres de todas las personas asignadas a la tarea
+
+#### Scenario: PDF muestra S/R sin persona asignada
+- **WHEN** el sistema genera el PDF y una tarea no tiene responsables asignados
+- **THEN** la columna Responsable muestra `S/R`
 
 #### Scenario: PDF excluye campos no requeridos
 - **WHEN** el sistema genera el PDF
@@ -88,8 +135,8 @@ El sistema SHALL permitir busqueda textual en vivo dentro de la seccion de Tarea
 - **THEN** la tabla muestra solo tareas cuyo nombre coincida con la busqueda
 
 #### Scenario: Buscar tarea de evento por detalle
-- **WHEN** una administradora escribe descripcion, hora, estado, visibilidad, rol responsable o nombre de staff asignado
-- **THEN** la tabla muestra tareas que coincidan con esos campos
+- **WHEN** una administradora escribe descripcion, hora, estado, visibilidad o nombre de cualquier staff asignado
+- **THEN** la tabla muestra tareas que coincidan con esos campos visibles
 
 #### Scenario: Combinar busqueda con filtros existentes
 - **WHEN** la administradora usa busqueda textual junto con filtro de responsable o visibilidad

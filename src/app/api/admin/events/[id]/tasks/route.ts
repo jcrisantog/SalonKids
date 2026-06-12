@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 
 import { requireAdmin } from "@/lib/admin-api";
+import {
+  normalizeStaffIds,
+  replaceStaffRelations,
+  validateStaffIds,
+} from "@/lib/staff-assignments";
 import { supabaseAdmin } from "@/lib/supabase-server";
 
 type RouteParams = {
@@ -15,9 +20,13 @@ type TaskPayload = {
   scheduled_time?: string;
   role_responsible?: string;
   staff_id?: string | null;
+  staff_ids?: string[];
   visibility?: "interna" | "publica";
   status?: "pendiente" | "en_progreso" | "completada";
 };
+
+const eventTaskSelect =
+  "id, event_id, task_name, description, scheduled_time, staff_id, role_responsible, status, visibility, is_manual_override, source_rule_task_id, source_master_task_id, created_at, event_task_staff(staff_id, sort_order, staff(id, name, primary_role, is_active))";
 
 function cleanText(value?: string) {
   return value?.trim() || null;
@@ -29,24 +38,6 @@ function normalizeTime(value?: string) {
   }
 
   return value.length === 5 ? `${value}:00` : value;
-}
-
-async function validateStaffId(staffId?: string | null) {
-  if (!staffId) {
-    return null;
-  }
-
-  const { data, error } = await supabaseAdmin
-    .from("staff")
-    .select("id")
-    .eq("id", staffId)
-    .maybeSingle();
-
-  if (error || !data) {
-    return "Selecciona un responsable valido del catalogo de personal.";
-  }
-
-  return null;
 }
 
 export async function GET(request: Request, context: RouteParams) {
@@ -66,9 +57,7 @@ export async function GET(request: Request, context: RouteParams) {
       .single(),
     supabaseAdmin
       .from("event_tasks")
-      .select(
-        "id, event_id, task_name, description, scheduled_time, staff_id, role_responsible, status, visibility, is_manual_override, created_at",
-      )
+      .select(eventTaskSelect)
       .eq("event_id", id)
       .order("scheduled_time", { ascending: true }),
     supabaseAdmin
@@ -106,7 +95,8 @@ export async function POST(request: Request, context: RouteParams) {
     return NextResponse.json({ error: "El nombre de la tarea es obligatorio." }, { status: 400 });
   }
 
-  const staffError = await validateStaffId(payload.staff_id);
+  const staffIds = normalizeStaffIds(payload.staff_ids ?? payload.staff_id);
+  const staffError = await validateStaffIds(staffIds);
 
   if (staffError) {
     return NextResponse.json({ error: staffError }, { status: 400 });
@@ -119,20 +109,36 @@ export async function POST(request: Request, context: RouteParams) {
       task_name: taskName,
       description: cleanText(payload.description),
       scheduled_time: normalizeTime(payload.scheduled_time),
-      staff_id: payload.staff_id || null,
+      staff_id: staffIds[0] ?? null,
       role_responsible: cleanText(payload.role_responsible),
       status: payload.status ?? "pendiente",
       visibility: payload.visibility ?? "interna",
       is_manual_override: true,
     })
-    .select(
-      "id, event_id, task_name, description, scheduled_time, staff_id, role_responsible, status, visibility, is_manual_override, created_at",
-    )
+    .select("id")
     .single();
 
   if (error) {
     return NextResponse.json({ error: "No se pudo crear la tarea." }, { status: 500 });
   }
 
-  return NextResponse.json({ task: data }, { status: 201 });
+  const relationError = await replaceStaffRelations({
+    table: "event_task_staff",
+    ownerColumn: "event_task_id",
+    ownerId: data.id,
+    staffIds,
+  });
+
+  if (relationError) {
+    await supabaseAdmin.from("event_tasks").delete().eq("id", data.id);
+    return NextResponse.json({ error: "No se pudieron guardar los responsables." }, { status: 500 });
+  }
+
+  const taskResult = await supabaseAdmin.from("event_tasks").select(eventTaskSelect).eq("id", data.id).single();
+
+  if (taskResult.error) {
+    return NextResponse.json({ error: "No se pudo cargar la tarea creada." }, { status: 500 });
+  }
+
+  return NextResponse.json({ task: taskResult.data }, { status: 201 });
 }

@@ -18,6 +18,7 @@ import {
 
 import { AdminToast } from "@/components/admin/AdminToast";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
+import { sanitizeGuidelinesHtml } from "@/lib/guidelines-notices";
 import { matchesSearch, normalizeSearchText } from "@/lib/search";
 
 type EventTaskStatus = "pendiente" | "en_progreso" | "completada";
@@ -42,6 +43,12 @@ type EventTask = {
   description: string | null;
   scheduled_time: string | null;
   staff_id: string | null;
+  staff_ids?: string[];
+  event_task_staff?: Array<{
+    staff_id: string;
+    sort_order: number | null;
+    staff?: StaffMember | null;
+  }>;
   role_responsible: string | null;
   status: EventTaskStatus;
   visibility: EventTaskVisibility;
@@ -60,7 +67,7 @@ type TaskForm = {
   task_name: string;
   description: string;
   scheduled_time: string;
-  staff_id: string;
+  staff_ids: string[];
   role_responsible: string;
   status: EventTaskStatus;
   visibility: EventTaskVisibility;
@@ -77,7 +84,7 @@ const emptyForm: TaskForm = {
   task_name: "",
   description: "",
   scheduled_time: "",
-  staff_id: "",
+  staff_ids: [],
   role_responsible: "",
   status: "pendiente",
   visibility: "interna",
@@ -99,6 +106,31 @@ function escapeHtml(value: string) {
     .replace(/'/g, "&#039;");
 }
 
+function getSelectValues(select: HTMLSelectElement) {
+  return Array.from(select.selectedOptions).map((option) => option.value);
+}
+
+function getTaskResponsibleIds(task: EventTask) {
+  const relationIds = [...(task.event_task_staff ?? [])]
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    .map((relation) => relation.staff_id)
+    .filter(Boolean);
+
+  if (relationIds.length > 0) {
+    return relationIds;
+  }
+
+  return task.staff_id ? [task.staff_id] : [];
+}
+
+function getTaskResponsibleLabel(task: EventTask, staffById: Map<string, StaffMember>, emptyLabel = "Sin responsable") {
+  const names = getTaskResponsibleIds(task).map(
+    (staffId) => staffById.get(staffId)?.name ?? "Responsable no encontrado",
+  );
+
+  return names.length ? names.join(", ") : emptyLabel;
+}
+
 export default function EventTasksPage({ params }: EventTasksPageProps) {
   const [eventId, setEventId] = useState<string | null>(null);
   const [event, setEvent] = useState<EventSummary | null>(null);
@@ -108,6 +140,11 @@ export default function EventTasksPage({ params }: EventTasksPageProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [assigning, setAssigning] = useState(false);
+  const [loadingGuidelinesForPdf, setLoadingGuidelinesForPdf] = useState(false);
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [guidelinesPdfModalOpen, setGuidelinesPdfModalOpen] = useState(false);
+  const [pendingGuidelinesHtml, setPendingGuidelinesHtml] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<EventTask | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -130,9 +167,9 @@ export default function EventTasksPage({ params }: EventTasksPageProps) {
     [staff],
   );
   const responsibleOptions = useMemo(() => {
-    const assignedStaffIds = new Set(tasks.map((task) => task.staff_id).filter(Boolean) as string[]);
+    const assignedStaffIds = new Set(tasks.flatMap(getTaskResponsibleIds));
     const assignedStaff = sortedStaff.filter((member) => assignedStaffIds.has(member.id));
-    const hasUnassigned = tasks.some((task) => !task.staff_id);
+    const hasUnassigned = tasks.some((task) => getTaskResponsibleIds(task).length === 0);
 
     return { assignedStaff, hasUnassigned };
   }, [sortedStaff, tasks]);
@@ -142,7 +179,9 @@ export default function EventTasksPage({ params }: EventTasksPageProps) {
       tasks.filter((task) => {
         const matchesResponsible =
           responsibleFilter === "todos" ||
-          (responsibleFilter === "sin_responsable" ? !task.staff_id : task.staff_id === responsibleFilter);
+          (responsibleFilter === "sin_responsable"
+            ? getTaskResponsibleIds(task).length === 0
+            : getTaskResponsibleIds(task).includes(responsibleFilter));
         const matchesVisibility =
           visibilityFilter === "todas" || task.visibility === visibilityFilter;
         const matchesQuery = matchesSearch(searchQuery, [
@@ -152,10 +191,7 @@ export default function EventTasksPage({ params }: EventTasksPageProps) {
           statusLabels[task.status],
           task.status,
           task.visibility === "publica" ? "Publica" : "Interna",
-          task.role_responsible,
-          task.staff_id
-            ? staffById.get(task.staff_id)?.name ?? "Responsable no encontrado"
-            : task.role_responsible || "Sin asignar",
+          getTaskResponsibleLabel(task, staffById),
         ]);
 
         return matchesResponsible && matchesVisibility && matchesQuery;
@@ -280,7 +316,7 @@ export default function EventTasksPage({ params }: EventTasksPageProps) {
       task_name: task.task_name,
       description: task.description ?? "",
       scheduled_time: task.scheduled_time?.slice(0, 5) ?? "",
-      staff_id: task.staff_id ?? "",
+      staff_ids: getTaskResponsibleIds(task),
       role_responsible: task.role_responsible ?? "",
       status: task.status,
       visibility: task.visibility,
@@ -292,11 +328,11 @@ export default function EventTasksPage({ params }: EventTasksPageProps) {
   }
 
   function getResponsibleLabel(task: EventTask) {
-    if (task.staff_id) {
-      return staffById.get(task.staff_id)?.name ?? "Responsable no encontrado";
-    }
+    return getTaskResponsibleLabel(task, staffById);
+  }
 
-    return task.role_responsible || "Sin asignar";
+  function getPdfResponsibleLabel(task: EventTask) {
+    return getTaskResponsibleLabel(task, staffById, "S/R");
   }
 
   function getResponsibleFilterLabel() {
@@ -326,18 +362,27 @@ export default function EventTasksPage({ params }: EventTasksPageProps) {
               <td class="time">${escapeHtml(task.scheduled_time?.slice(0, 5) || "Sin hora")}</td>
               <td>${escapeHtml(task.task_name)}</td>
               <td class="description">${escapeHtml(task.description || "Sin descripcion")}</td>
-              <td>${escapeHtml(getResponsibleLabel(task))}</td>
+              <td>${escapeHtml(getPdfResponsibleLabel(task))}</td>
             </tr>
           `;
       })
       .join("");
   }
 
-  function printFilteredTasks() {
+  function printFilteredTasks(guidelinesHtml = "") {
     if (!event || filteredTasks.length === 0) {
       return;
     }
 
+    const safeGuidelinesHtml = sanitizeGuidelinesHtml(guidelinesHtml);
+    const guidelinesSection = safeGuidelinesHtml
+      ? `
+        <section class="guidelines">
+          <div class="section-label">Lineamientos y Avisos</div>
+          <div class="guidelines-content">${safeGuidelinesHtml}</div>
+        </section>
+      `
+      : "";
     const printWindow = window.open("", "_blank", "width=980,height=760");
 
     if (!printWindow) {
@@ -483,6 +528,61 @@ export default function EventTasksPage({ params }: EventTasksPageProps) {
               width: 180px;
             }
             .row-odd td { background: #f8fcff; }
+            .guidelines {
+              margin: 0 24px 24px;
+              padding: 20px;
+              border: 1px solid #bae6fd;
+              border-radius: 18px;
+              background: #f0fdfa;
+              break-inside: avoid;
+            }
+            .section-label {
+              margin-bottom: 12px;
+              color: #0f766e;
+              font-size: 11px;
+              font-weight: 900;
+              letter-spacing: 0.14em;
+              text-transform: uppercase;
+            }
+            .guidelines-content {
+              color: #172033;
+              font-size: 13px;
+              line-height: 1.65;
+            }
+            .guidelines-content h2,
+            .guidelines-content h3,
+            .guidelines-content h4 {
+              margin: 0.35rem 0 0.5rem;
+              color: #0f172a;
+              line-height: 1.25;
+            }
+            .guidelines-content h2 { font-size: 20px; }
+            .guidelines-content h3 { font-size: 17px; }
+            .guidelines-content h4 { font-size: 15px; }
+            .guidelines-content p,
+            .guidelines-content div {
+              margin: 0 0 0.65rem;
+            }
+            .guidelines-content ul,
+            .guidelines-content ol {
+              margin: 0.35rem 0 0.75rem;
+              padding-left: 1.35rem;
+            }
+            .guidelines-content ul {
+              list-style-type: disc;
+            }
+            .guidelines-content ol {
+              list-style-type: decimal;
+            }
+            .guidelines-content li {
+              display: list-item;
+              margin: 0.2rem 0;
+            }
+            .guidelines-content a {
+              color: #0369a1;
+              font-weight: 700;
+              text-decoration: underline;
+            }
             footer {
               padding: 0 24px 24px;
               color: #64748b;
@@ -527,6 +627,7 @@ export default function EventTasksPage({ params }: EventTasksPageProps) {
                 </tbody>
               </table>
             </main>
+            ${guidelinesSection}
             <footer>Salon Kids · Informacion generada desde la tabla filtrada</footer>
           </section>
           <script>
@@ -537,6 +638,32 @@ export default function EventTasksPage({ params }: EventTasksPageProps) {
         </body>
       </html>`);
     printWindow.document.close();
+  }
+
+  async function handlePrintRequest() {
+    if (!event || filteredTasks.length === 0 || loadingGuidelinesForPdf) {
+      return;
+    }
+
+    setLoadingGuidelinesForPdf(true);
+    setError(null);
+
+    try {
+      const payload = await adminFetch("/api/admin/guidelines-notices");
+      const safeHtml = sanitizeGuidelinesHtml(payload.html ?? "");
+
+      if (payload.hasContent && safeHtml) {
+        setPendingGuidelinesHtml(safeHtml);
+        setGuidelinesPdfModalOpen(true);
+      } else {
+        printFilteredTasks();
+      }
+    } catch {
+      setError("No se pudieron cargar los lineamientos y avisos. Se generara el PDF sin esa seccion.");
+      printFilteredTasks();
+    } finally {
+      setLoadingGuidelinesForPdf(false);
+    }
   }
 
   async function handleSubmit(submitEvent: React.FormEvent<HTMLFormElement>) {
@@ -599,6 +726,31 @@ export default function EventTasksPage({ params }: EventTasksPageProps) {
     }
   }
 
+  async function assignResponsiblesAutomatically(mode: "complete" | "replace") {
+    if (!eventId) {
+      return;
+    }
+
+    setAssignModalOpen(false);
+    setAssigning(true);
+    setError(null);
+
+    try {
+      const result = await adminFetch(`/api/admin/events/${eventId}/tasks/assign-responsibles`, {
+        method: "POST",
+        body: JSON.stringify({ mode }),
+      });
+      setToastMessage(
+        `Asignacion lista: ${result.updated ?? 0} actualizadas, ${result.incomplete ?? 0} incompletas, ${result.unchanged ?? 0} sin cambios.`,
+      );
+      await loadTasks();
+    } catch (assignError) {
+      setError(assignError instanceof Error ? assignError.message : "No se pudieron asignar responsables.");
+    } finally {
+      setAssigning(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -625,71 +777,30 @@ export default function EventTasksPage({ params }: EventTasksPageProps) {
       </header>
 
       <form ref={formRef} onSubmit={handleSubmit} className="rounded-lg border border-white/10 bg-white/[0.04] p-5">
-        <div className="grid gap-4 lg:grid-cols-[1fr_160px_220px_180px_160px]">
-          <Field label="Tarea">
-            <input
-              value={form.task_name}
-              onChange={(event) => setForm((current) => ({ ...current, task_name: event.target.value }))}
-              className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-blue-300"
-              placeholder="Confirmar pastel con anfitrion"
-              required
-            />
-          </Field>
-          <Field label="Hora">
-            <input
-              type="time"
-              value={form.scheduled_time}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, scheduled_time: event.target.value }))
-              }
-              className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-blue-300"
-            />
-          </Field>
-          <Field label="Rol responsable">
-            <input
-              value={form.role_responsible}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, role_responsible: event.target.value }))
-              }
-              className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-blue-300"
-              placeholder="DJ"
-            />
-          </Field>
-          <Field label="Responsable">
-            <select
-              value={form.staff_id}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, staff_id: event.target.value }))
-              }
-              className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-blue-300"
-            >
-              <option value="">Sin responsable</option>
-              {sortedStaff.map((member) => (
-                <option key={member.id} value={member.id}>
-                  {member.name} - {member.primary_role}
-                  {member.is_active ? "" : " (inactivo)"}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Estado">
-            <select
-              value={form.status}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, status: event.target.value as EventTaskStatus }))
-              }
-              className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-blue-300"
-            >
-              {Object.entries(statusLabels).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </div>
-        <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_180px_220px]">
-          <Field label="Descripcion">
+        <div className="grid gap-5 xl:grid-cols-[minmax(520px,1.25fr)_minmax(420px,0.75fr)]">
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-[minmax(260px,1fr)_180px]">
+              <Field label="Tarea">
+                <input
+                  value={form.task_name}
+                  onChange={(event) => setForm((current) => ({ ...current, task_name: event.target.value }))}
+                  className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-blue-300"
+                  placeholder="Confirmar pastel con anfitrion"
+                  required
+                />
+              </Field>
+              <Field label="Hora">
+                <input
+                  type="time"
+                  value={form.scheduled_time}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, scheduled_time: event.target.value }))
+                  }
+                  className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-blue-300"
+                />
+              </Field>
+            </div>
+            <Field label="Descripcion">
             <textarea
               value={form.description}
               onChange={(event) =>
@@ -698,59 +809,97 @@ export default function EventTasksPage({ params }: EventTasksPageProps) {
               className="min-h-24 w-full resize-y rounded-md border border-white/10 bg-zinc-950 px-3 py-3 text-white outline-none focus:border-blue-300"
               placeholder="Instrucciones operativas para el staff."
             />
-          </Field>
-          <Field label="Visibilidad">
-            <select
-              value={form.visibility}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  visibility: event.target.value as EventTaskVisibility,
-                }))
-              }
-              className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-blue-300"
-            >
-              <option value="interna">Interna</option>
-              <option value="publica">Publica</option>
-            </select>
-          </Field>
-          <label className="mt-7 flex h-11 items-center gap-3 rounded-md border border-white/10 bg-zinc-950 px-3 text-sm text-gray-200">
-            <input
-              type="checkbox"
-              checked={form.is_manual_override}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, is_manual_override: event.target.checked }))
-              }
-              className="h-4 w-4 accent-blue-300"
-            />
-            Proteger ajuste manual
-          </label>
-        </div>
-        <div className="mt-4 flex gap-2">
-          <button
-            type="submit"
-            disabled={saving}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-blue-300 px-4 font-semibold text-zinc-950 transition hover:bg-blue-200 disabled:opacity-60"
-          >
-            {saving ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : editingId ? (
-              <Save className="h-4 w-4" />
-            ) : (
-              <Plus className="h-4 w-4" />
-            )}
-            {editingId ? "Guardar tarea" : "Agregar tarea"}
-          </button>
-          {editingId ? (
-            <button
-              type="button"
-              onClick={resetForm}
-              className="grid h-11 w-11 place-items-center rounded-md border border-white/10 text-gray-300 transition hover:bg-white/10"
-              title="Cancelar edicion"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          ) : null}
+            </Field>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
+            <Field label="Responsables">
+              <select
+                multiple
+                size={5}
+                value={form.staff_ids}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, staff_ids: getSelectValues(event.target) }))
+                }
+                className="h-32 w-full rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-white outline-none focus:border-blue-300"
+              >
+                {sortedStaff.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.name}
+                    {member.is_active ? "" : " (inactivo)"}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Estado">
+                <select
+                  value={form.status}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, status: event.target.value as EventTaskStatus }))
+                  }
+                  className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-blue-300"
+                >
+                  {Object.entries(statusLabels).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Visibilidad">
+                <select
+                  value={form.visibility}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      visibility: event.target.value as EventTaskVisibility,
+                    }))
+                  }
+                  className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-blue-300"
+                >
+                  <option value="interna">Interna</option>
+                  <option value="publica">Publica</option>
+                </select>
+              </Field>
+            </div>
+            <label className="flex h-11 items-center gap-3 rounded-md border border-white/10 bg-zinc-950 px-3 text-sm text-gray-200">
+              <input
+                type="checkbox"
+                checked={form.is_manual_override}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, is_manual_override: event.target.checked }))
+                }
+                className="h-4 w-4 accent-blue-300"
+              />
+              Proteger ajuste manual
+            </label>
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={saving}
+                className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-md bg-blue-300 px-4 font-semibold text-zinc-950 transition hover:bg-blue-200 disabled:opacity-60"
+              >
+                {saving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : editingId ? (
+                  <Save className="h-4 w-4" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
+                {editingId ? "Guardar tarea" : "Agregar tarea"}
+              </button>
+              {editingId ? (
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="grid h-11 w-11 place-items-center rounded-md border border-white/10 text-gray-300 transition hover:bg-white/10"
+                  title="Cancelar edicion"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              ) : null}
+            </div>
+          </div>
         </div>
       </form>
 
@@ -761,83 +910,108 @@ export default function EventTasksPage({ params }: EventTasksPageProps) {
       ) : null}
 
       <section className="overflow-hidden rounded-lg border border-white/10 bg-white/[0.03]">
-        <div className="flex flex-col gap-3 border-b border-white/10 bg-white/[0.04] p-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="grid gap-3 sm:grid-cols-2 lg:min-w-[760px] lg:grid-cols-[1fr_240px_190px]">
-            <label className="block">
-              <span className="mb-2 block text-sm font-medium text-gray-300">Buscar tareas</span>
-              <div className="flex h-11 items-center gap-2 rounded-md border border-white/10 bg-zinc-950 px-3 focus-within:border-blue-300">
-                <Search className="h-4 w-4 text-gray-500" />
-                <input
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  className="h-full min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-gray-600"
-                  placeholder="Tarea, descripcion, hora, staff..."
-                />
-                {hasSearch ? (
-                  <button
-                    type="button"
-                    onClick={() => setSearchQuery("")}
-                    className="grid h-7 w-7 place-items-center rounded-md text-gray-400 transition hover:bg-white/10 hover:text-white"
-                    title="Limpiar busqueda"
+        <div className="border-b border-white/10 bg-white/[0.04] p-4">
+          <div className="grid gap-4 xl:grid-cols-[minmax(620px,1fr)_260px] xl:items-end">
+            <div className="space-y-3">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Filtrar responsable">
+                  <select
+                    value={responsibleFilter}
+                    onChange={(event) => setResponsibleFilter(event.target.value as ResponsibleFilter)}
+                    className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-blue-300"
                   >
-                    <X className="h-4 w-4" />
-                  </button>
-                ) : null}
+                    <option value="todos">Todos los responsables</option>
+                    {responsibleOptions.assignedStaff.map((member) => (
+                      <option key={member.id} value={member.id}>
+                        {member.name}
+                        {member.is_active ? "" : " (inactivo)"}
+                      </option>
+                    ))}
+                    {responsibleOptions.hasUnassigned ? (
+                      <option value="sin_responsable">Sin responsable</option>
+                    ) : null}
+                  </select>
+                </Field>
+                <Field label="Filtrar visibilidad">
+                  <select
+                    value={visibilityFilter}
+                    onChange={(event) => setVisibilityFilter(event.target.value as VisibilityFilter)}
+                    className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-blue-300"
+                  >
+                    <option value="todas">Todas</option>
+                    <option value="interna">Interna</option>
+                    <option value="publica">Publica</option>
+                  </select>
+                </Field>
               </div>
-            </label>
-            <Field label="Filtrar responsable">
-              <select
-                value={responsibleFilter}
-                onChange={(event) => setResponsibleFilter(event.target.value as ResponsibleFilter)}
-                className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-blue-300"
-              >
-                <option value="todos">Todos los responsables</option>
-                {responsibleOptions.assignedStaff.map((member) => (
-                  <option key={member.id} value={member.id}>
-                    {member.name} - {member.primary_role}
-                    {member.is_active ? "" : " (inactivo)"}
-                  </option>
-                ))}
-                {responsibleOptions.hasUnassigned ? (
-                  <option value="sin_responsable">Sin responsable</option>
-                ) : null}
-              </select>
-            </Field>
-            <Field label="Filtrar visibilidad">
-              <select
-                value={visibilityFilter}
-                onChange={(event) => setVisibilityFilter(event.target.value as VisibilityFilter)}
-                className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-blue-300"
-              >
-                <option value="todas">Todas</option>
-                <option value="interna">Interna</option>
-                <option value="publica">Publica</option>
-              </select>
-            </Field>
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <p className="text-sm text-gray-400">
-              {filteredTasks.length} de {tasks.length} tareas
-              {activeFilterCount ? ` · ${activeFilterCount} filtro(s)` : ""}
-            </p>
-            <div className="flex gap-2">
+              <div className="grid gap-3 lg:grid-cols-[minmax(300px,1fr)_150px_44px] lg:items-end">
+                <label className="block">
+                  <span className="mb-2 block text-sm font-medium text-gray-300">Buscar tareas</span>
+                  <div className="flex h-11 items-center gap-2 rounded-md border border-white/10 bg-zinc-950 px-3 focus-within:border-blue-300">
+                    <Search className="h-4 w-4 text-gray-500" />
+                    <input
+                      value={searchQuery}
+                      onChange={(event) => setSearchQuery(event.target.value)}
+                      className="h-full min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-gray-600"
+                      placeholder="Tarea, descripcion, hora, responsable..."
+                    />
+                    {hasSearch ? (
+                      <button
+                        type="button"
+                        onClick={() => setSearchQuery("")}
+                        className="grid h-7 w-7 place-items-center rounded-md text-gray-400 transition hover:bg-white/10 hover:text-white"
+                        title="Limpiar busqueda"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    ) : null}
+                  </div>
+                </label>
+                <div className="rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-sm text-gray-300">
+                  <span className="block font-semibold text-white">
+                    {filteredTasks.length} de {tasks.length}
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    {activeFilterCount ? `${activeFilterCount} filtro(s)` : "Sin filtros"}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  disabled={activeFilterCount === 0}
+                  className="grid h-11 w-11 place-items-center rounded-md border border-white/10 text-gray-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                  title="Limpiar filtros"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            <div className="grid gap-2">
               <button
                 type="button"
-                onClick={resetFilters}
-                disabled={activeFilterCount === 0}
-                className="grid h-11 w-11 place-items-center rounded-md border border-white/10 text-gray-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
-                title="Limpiar filtros"
+                onClick={handlePrintRequest}
+                disabled={!event || filteredTasks.length === 0 || loadingGuidelinesForPdf}
+                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-cyan-300 px-4 text-sm font-semibold text-zinc-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <RotateCcw className="h-4 w-4" />
+                {loadingGuidelinesForPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                <span>{loadingGuidelinesForPdf ? "Preparando..." : "Generar PDF"}</span>
               </button>
               <button
                 type="button"
-                onClick={printFilteredTasks}
-                disabled={!event || filteredTasks.length === 0}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-cyan-300 px-4 font-semibold text-zinc-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={() => {
+                  const hasAssignedTasks = tasks.some((task) => getTaskResponsibleIds(task).length > 0);
+
+                  if (hasAssignedTasks) {
+                    setAssignModalOpen(true);
+                  } else {
+                    assignResponsiblesAutomatically("complete");
+                  }
+                }}
+                disabled={!event || tasks.length === 0 || saving || assigning}
+                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-emerald-300 px-4 text-sm font-semibold text-zinc-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <FileText className="h-4 w-4" />
-                Generar PDF
+                {assigning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                {assigning ? "Asignando..." : "Asignar responsables"}
               </button>
             </div>
           </div>
@@ -854,13 +1028,12 @@ export default function EventTasksPage({ params }: EventTasksPageProps) {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px] text-left text-sm">
+            <table className="w-full min-w-[980px] text-left text-sm">
               <thead className="border-b border-white/10 bg-white/[0.04] text-xs uppercase tracking-wider text-gray-500">
                 <tr>
                   <th className="px-5 py-4">Tarea</th>
                   <th className="px-5 py-4">Hora</th>
                   <th className="px-5 py-4">Responsable</th>
-                  <th className="px-5 py-4">Rol</th>
                   <th className="px-5 py-4">Estado</th>
                   <th className="px-5 py-4">Proteccion</th>
                   <th className="px-5 py-4 text-right">Acciones</th>
@@ -881,7 +1054,6 @@ export default function EventTasksPage({ params }: EventTasksPageProps) {
                     <td className="px-5 py-4 text-gray-300">
                       {getResponsibleLabel(task)}
                     </td>
-                    <td className="px-5 py-4 text-gray-300">{task.role_responsible || "Sin rol"}</td>
                     <td className="px-5 py-4">
                       <span className="inline-flex rounded-md bg-blue-400/10 px-2 py-1 text-xs font-semibold text-blue-200">
                         {statusLabels[task.status]}
@@ -936,6 +1108,38 @@ export default function EventTasksPage({ params }: EventTasksPageProps) {
         onCancel={() => (deletingId ? null : setDeleteTarget(null))}
         onConfirm={deleteTask}
       />
+      <AssignResponsiblesDialog
+        loading={assigning}
+        open={assignModalOpen}
+        onCancel={() => setAssignModalOpen(false)}
+        onComplete={() => assignResponsiblesAutomatically("complete")}
+        onReplace={() => assignResponsiblesAutomatically("replace")}
+      />
+      <GuidelinesPdfDialog
+        open={guidelinesPdfModalOpen}
+        onCancel={() => setGuidelinesPdfModalOpen(false)}
+        onInclude={() => {
+          setGuidelinesPdfModalOpen(false);
+          printFilteredTasks(pendingGuidelinesHtml);
+        }}
+        onSkip={() => {
+          setGuidelinesPdfModalOpen(false);
+          printFilteredTasks();
+        }}
+      />
+      {assigning ? (
+        <div className="fixed inset-0 z-[1100] grid place-items-center bg-black/70 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-lg border border-emerald-300/30 bg-[#111116] p-6 text-center shadow-2xl">
+            <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-300/10 text-emerald-200">
+              <Loader2 className="h-7 w-7 animate-spin" />
+            </div>
+            <h2 className="mt-4 text-lg font-semibold text-white">Asignando responsables</h2>
+            <p className="mt-2 text-sm leading-6 text-gray-400">
+              Estamos revisando tareas, defaults y personal activo. Esto puede tardar unos segundos.
+            </p>
+          </div>
+        </div>
+      ) : null}
       <AdminToast message={toastMessage} onClose={() => setToastMessage(null)} />
     </div>
   );
@@ -947,5 +1151,135 @@ function Field({ children, label }: { children: React.ReactNode; label: string }
       <span className="mb-2 block text-sm font-medium text-gray-300">{label}</span>
       {children}
     </label>
+  );
+}
+
+function AssignResponsiblesDialog({
+  loading,
+  onCancel,
+  onComplete,
+  onReplace,
+  open,
+}: {
+  loading: boolean;
+  onCancel: () => void;
+  onComplete: () => void;
+  onReplace: () => void;
+  open: boolean;
+}) {
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <div className="fixed inset-0 z-[1000] grid place-items-center bg-black/70 px-4 backdrop-blur-sm">
+      <div className="w-full max-w-lg rounded-lg border border-white/10 bg-[#111116] p-5 text-white shadow-2xl">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-wider text-emerald-300">
+              Asignacion automatica
+            </p>
+            <h2 className="mt-2 text-2xl font-bold tracking-tight">Ya hay responsables asignados</h2>
+            <p className="mt-2 text-sm leading-6 text-gray-400">
+              Elige si el sistema debe conservarlos y completar faltantes, o recalcular las listas desde cero.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={loading}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-md text-gray-400 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
+            title="Cerrar"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={onComplete}
+            disabled={loading}
+            className="rounded-lg border border-emerald-300/30 bg-emerald-300/10 p-4 text-left transition hover:bg-emerald-300/15 disabled:opacity-60"
+          >
+            <span className="block font-semibold text-emerald-100">Completar faltantes</span>
+            <span className="mt-2 block text-sm leading-5 text-gray-400">
+              Conserva responsables actuales y agrega solo donde falten cupos.
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={onReplace}
+            disabled={loading}
+            className="rounded-lg border border-amber-300/30 bg-amber-300/10 p-4 text-left transition hover:bg-amber-300/15 disabled:opacity-60"
+          >
+            <span className="block font-semibold text-amber-100">Reemplazar</span>
+            <span className="mt-2 block text-sm leading-5 text-gray-400">
+              Borra asignaciones actuales y vuelve a repartir con defaults y aleatorio.
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GuidelinesPdfDialog({
+  onCancel,
+  onInclude,
+  onSkip,
+  open,
+}: {
+  onCancel: () => void;
+  onInclude: () => void;
+  onSkip: () => void;
+  open: boolean;
+}) {
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <div className="fixed inset-0 z-[1000] grid place-items-center bg-black/70 px-4 backdrop-blur-sm">
+      <div className="w-full max-w-lg rounded-lg border border-cyan-300/20 bg-[#111116] p-5 text-white shadow-2xl">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-wider text-cyan-300">
+              Generar PDF
+            </p>
+            <h2 className="mt-2 text-2xl font-bold tracking-tight">Incluir lineamientos y avisos</h2>
+            <p className="mt-2 text-sm leading-6 text-gray-400">
+              Hay lineamientos guardados. Puedes anexarlos al reporte de tareas o generar el PDF solo con la tabla filtrada.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-gray-500 transition hover:bg-white/10 hover:text-white"
+            title="Cerrar"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={onSkip}
+            className="h-11 rounded-md border border-white/10 px-4 text-sm font-semibold text-gray-300 transition hover:bg-white/10 hover:text-white"
+          >
+            Sin lineamientos
+          </button>
+          <button
+            type="button"
+            onClick={onInclude}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-cyan-300 px-4 text-sm font-semibold text-zinc-950 transition hover:bg-cyan-200"
+          >
+            <FileText className="h-4 w-4" />
+            Incluir lineamientos
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

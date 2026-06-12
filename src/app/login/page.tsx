@@ -15,12 +15,18 @@ export default function LoginPage() {
     let mounted = true;
 
     async function redirectAuthenticatedUser() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
 
-      if (mounted && session) {
-        window.location.replace("/admin/dashboard");
+        if (mounted && session) {
+          window.location.replace("/admin/dashboard");
+        }
+      } catch {
+        if (mounted) {
+          setError("No se pudo verificar la sesion guardada. Vuelve a iniciar sesion.");
+        }
       }
     }
 

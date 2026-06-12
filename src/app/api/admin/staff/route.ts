@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-api";
 import { supabaseAdmin } from "@/lib/supabase-server";
 
+const DEFAULT_STAFF_ROLE = "General";
+
 export async function GET(request: Request) {
   const auth = await requireAdmin(request);
 
@@ -36,13 +38,10 @@ export async function POST(request: Request) {
   };
 
   const name = body.name?.trim();
-  const primaryRole = body.primary_role?.trim();
+  const primaryRole = body.primary_role?.trim() || DEFAULT_STAFF_ROLE;
 
-  if (!name || !primaryRole) {
-    return NextResponse.json(
-      { error: "Nombre y rol principal son obligatorios." },
-      { status: 400 },
-    );
+  if (!name) {
+    return NextResponse.json({ error: "El nombre es obligatorio." }, { status: 400 });
   }
 
   const { data, error } = await supabaseAdmin
