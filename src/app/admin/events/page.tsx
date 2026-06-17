@@ -18,6 +18,10 @@ import {
 
 import { AdminToast } from "@/components/admin/AdminToast";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
+import {
+  questionnaireCompletionLabels,
+  type QuestionnaireCompletionStatus,
+} from "@/lib/questionnaire-completion";
 import { matchesSearch, normalizeSearchText } from "@/lib/search";
 
 type EventStatus = "pendiente" | "guardado" | "validado" | "finalizado";
@@ -33,6 +37,8 @@ type EventRecord = {
   end_time: string;
   token_unico: string;
   status: EventStatus;
+  questionnaire_status: QuestionnaireCompletionStatus;
+  questionnaire_completed_at: string | null;
   created_at: string;
   clients: {
     full_name: string;
@@ -74,6 +80,23 @@ const statusLabels: Record<EventStatus, string> = {
   finalizado: "Finalizado",
 };
 
+const questionnaireStatusStyles: Record<QuestionnaireCompletionStatus, string> = {
+  sin_iniciar: "bg-zinc-500/10 text-zinc-300",
+  en_progreso: "bg-amber-400/10 text-amber-200",
+  completado_por_cliente: "bg-emerald-400/10 text-emerald-200",
+};
+
+function formatQuestionnaireCompletedAt(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  return new Date(value).toLocaleString("es-MX", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
+
 export default function EventsPage() {
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [form, setForm] = useState<EventForm>(emptyForm);
@@ -112,6 +135,8 @@ export default function EventsPage() {
           event.end_time?.slice(0, 5),
           statusLabels[event.status],
           event.status,
+          questionnaireCompletionLabels[event.questionnaire_status],
+          event.questionnaire_completed_at,
           event.clients?.full_name,
           event.clients?.phone,
           event.clients?.email,
@@ -497,7 +522,7 @@ export default function EventsPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px] text-left text-sm">
+            <table className="w-full min-w-[1240px] text-left text-sm">
               <thead className="border-b border-white/10 bg-white/[0.04] text-xs uppercase tracking-wider text-gray-500">
                 <tr>
                   <th className="px-5 py-4">Evento</th>
@@ -505,6 +530,7 @@ export default function EventsPage() {
                   <th className="px-5 py-4">Fecha</th>
                   <th className="px-5 py-4">Horario</th>
                   <th className="px-5 py-4">Estatus</th>
+                  <th className="px-5 py-4">Cuestionario</th>
                   <th className="px-5 py-4 text-right">Acciones</th>
                 </tr>
               </thead>
@@ -534,6 +560,16 @@ export default function EventsPage() {
                       <span className="inline-flex rounded-md bg-blue-400/10 px-2 py-1 text-xs font-semibold text-blue-200">
                         {statusLabels[event.status]}
                       </span>
+                    </td>
+                    <td className="px-5 py-4">
+                      <span className={`inline-flex rounded-md px-2 py-1 text-xs font-semibold ${questionnaireStatusStyles[event.questionnaire_status]}`}>
+                        {questionnaireCompletionLabels[event.questionnaire_status]}
+                      </span>
+                      {event.questionnaire_completed_at ? (
+                        <p className="mt-1 text-xs text-gray-500">
+                          {formatQuestionnaireCompletedAt(event.questionnaire_completed_at)}
+                        </p>
+                      ) : null}
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex justify-end gap-2">

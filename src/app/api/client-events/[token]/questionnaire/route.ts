@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { getQuestionnaireCompletionStatus } from "@/lib/questionnaire-completion";
 import { normalizeQuestionnaire } from "@/lib/questionnaire-schema";
 import { syncReactiveTasks, type QuestionnaireData } from "@/lib/rule-engine";
 import { supabaseAdmin } from "@/lib/supabase-server";
@@ -49,7 +50,7 @@ export async function GET(_request: Request, context: RouteParams) {
 
   const { data: questionnaire, error: questionnaireError } = await supabaseAdmin
     .from("questionnaire_data")
-    .select("data, updated_at")
+    .select("data, updated_at, completed_at")
     .eq("event_id", event.id)
     .maybeSingle();
 
@@ -62,6 +63,7 @@ export async function GET(_request: Request, context: RouteParams) {
 
   try {
     const publicTasks = await getPublicTasks(event.id);
+    const completedAt = questionnaire?.completed_at ?? null;
 
     return NextResponse.json({
       event,
@@ -69,6 +71,11 @@ export async function GET(_request: Request, context: RouteParams) {
         (questionnaire?.data ?? {}) as Partial<QuestionnaireData>,
       ),
       updatedAt: questionnaire?.updated_at ?? null,
+      completedAt,
+      questionnaireStatus: getQuestionnaireCompletionStatus({
+        hasQuestionnaire: Boolean(questionnaire),
+        completedAt,
+      }),
       publicTasks,
     });
   } catch {
@@ -87,21 +94,33 @@ export async function PUT(request: Request, context: RouteParams) {
     return NextResponse.json({ error: "Evento no encontrado." }, { status: 404 });
   }
 
-  const body = (await request.json()) as { questionnaire?: QuestionnaireData };
+  const body = (await request.json()) as {
+    intent?: "save" | "complete";
+    questionnaire?: QuestionnaireData;
+  };
+  const intent = body.intent === "complete" ? "complete" : "save";
   const questionnaire = normalizeQuestionnaire(body.questionnaire ?? {});
+  const savedAt = new Date().toISOString();
+  const completedAt = intent === "complete" ? savedAt : null;
 
   const { error: upsertError } = await supabaseAdmin.from("questionnaire_data").upsert(
     {
       event_id: event.id,
       data: questionnaire,
-      updated_at: new Date().toISOString(),
+      updated_at: savedAt,
+      completed_at: completedAt,
     },
     { onConflict: "event_id" },
   );
 
   if (upsertError) {
     return NextResponse.json(
-      { error: "No se pudo guardar el cuestionario." },
+      {
+        error:
+          intent === "complete"
+            ? "No se pudo enviar el cuestionario."
+            : "No se pudo guardar el cuestionario.",
+      },
       { status: 500 },
     );
   }
@@ -109,10 +128,12 @@ export async function PUT(request: Request, context: RouteParams) {
   try {
     const generatedTasks = await syncReactiveTasks(supabaseAdmin, event.id, questionnaire);
 
-    await supabaseAdmin
-      .from("events")
-      .update({ status: "guardado" })
-      .eq("id", event.id);
+    if (event.status !== "validado" && event.status !== "finalizado") {
+      await supabaseAdmin
+        .from("events")
+        .update({ status: "guardado" })
+        .eq("id", event.id);
+    }
 
     const publicTasks = await getPublicTasks(event.id);
 
@@ -120,6 +141,11 @@ export async function PUT(request: Request, context: RouteParams) {
       ok: true,
       generatedTasks,
       publicTasks,
+      completedAt,
+      questionnaireStatus: getQuestionnaireCompletionStatus({
+        hasQuestionnaire: true,
+        completedAt,
+      }),
     });
   } catch {
     return NextResponse.json(

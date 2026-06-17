@@ -2,6 +2,37 @@
 -- Ejecutar despues de aplicar schema.sql y Documentos/seed-operational-master-tasks.sql.
 -- Las preguntas sin regla activa quedan como informacion para la duena o como detalle dentro de otra tarea.
 
+CREATE OR REPLACE FUNCTION pg_temp.ensure_task_group(
+  p_assignment_group_key TEXT,
+  p_assignment_group_label TEXT
+)
+RETURNS UUID
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  current_group_id UUID;
+BEGIN
+  IF p_assignment_group_key IS NULL OR p_assignment_group_key = '' THEN
+    RETURN NULL;
+  END IF;
+
+  INSERT INTO public.task_groups (
+    key,
+    name
+  )
+  VALUES (
+    p_assignment_group_key,
+    COALESCE(NULLIF(p_assignment_group_label, ''), p_assignment_group_key)
+  )
+  ON CONFLICT (key) DO UPDATE SET
+    name = EXCLUDED.name,
+    updated_at = NOW()
+  RETURNING id INTO current_group_id;
+
+  RETURN current_group_id;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION pg_temp.ensure_questionnaire_rule_task(
   p_field_key TEXT,
   p_field_label TEXT,
@@ -15,7 +46,9 @@ CREATE OR REPLACE FUNCTION pg_temp.ensure_questionnaire_rule_task(
   p_default_role TEXT,
   p_visibility TEXT,
   p_time TIME DEFAULT NULL,
-  p_sort_order INTEGER DEFAULT 0
+  p_sort_order INTEGER DEFAULT 0,
+  p_assignment_group_key TEXT DEFAULT NULL,
+  p_assignment_group_label TEXT DEFAULT NULL
 )
 RETURNS VOID
 LANGUAGE plpgsql
@@ -23,14 +56,38 @@ AS $$
 DECLARE
   current_rule_id UUID;
   current_task_id UUID;
+  current_group_id UUID;
 BEGIN
-  INSERT INTO public.master_tasks (name, base_description, visibility, area, default_role)
-  VALUES (p_task_name, p_task_description, p_visibility, p_area, p_default_role)
+  current_group_id := pg_temp.ensure_task_group(p_assignment_group_key, p_assignment_group_label);
+
+  INSERT INTO public.master_tasks (
+    name,
+    base_description,
+    visibility,
+    area,
+    default_role,
+    assignment_group_id,
+    assignment_group_key,
+    assignment_group_label
+  )
+  VALUES (
+    p_task_name,
+    p_task_description,
+    p_visibility,
+    p_area,
+    p_default_role,
+    current_group_id,
+    p_assignment_group_key,
+    p_assignment_group_label
+  )
   ON CONFLICT (name) DO UPDATE SET
     base_description = EXCLUDED.base_description,
     visibility = EXCLUDED.visibility,
     area = EXCLUDED.area,
-    default_role = EXCLUDED.default_role;
+    default_role = EXCLUDED.default_role,
+    assignment_group_id = EXCLUDED.assignment_group_id,
+    assignment_group_key = EXCLUDED.assignment_group_key,
+    assignment_group_label = EXCLUDED.assignment_group_label;
 
   SELECT id INTO current_task_id
   FROM public.master_tasks
@@ -851,3 +908,60 @@ SELECT pg_temp.ensure_questionnaire_rule_task(
   'publica',
   NULL
 );
+
+-- Agrupaciones de asignacion iniciales.
+-- Las tareas no listadas quedan sin grupo para conservar asignacion individual.
+WITH grouped(task_name, assignment_group_key, assignment_group_label) AS (
+  VALUES
+    ('Preparar mesa y accesorios de pastel', 'pastel', 'Pastel'),
+    ('Protocolo de pastel', 'pastel', 'Pastel'),
+    ('Preparar chisperos o bombas de pastel', 'pastel', 'Pastel'),
+    ('Preparar bazukas de color', 'pastel', 'Pastel'),
+    ('Coordinar souvenirs de pastel', 'pastel', 'Pastel'),
+    ('Bloquear musica no deseada', 'audio-dj', 'Audio/DJ'),
+    ('Preparar bloque de baile', 'audio-dj', 'Audio/DJ'),
+    ('Preparar microfono para mensajes', 'audio-dj', 'Audio/DJ'),
+    ('Preparar proyector o pantalla', 'audio-dj', 'Audio/DJ'),
+    ('Preparar aparicion de personaje', 'animacion-personaje', 'Animacion personaje'),
+    ('Aparicion de personaje', 'animacion-personaje', 'Animacion personaje'),
+    ('Preparar area de pinata', 'pinata', 'Pinata'),
+    ('Pinata', 'pinata', 'Pinata'),
+    ('Preparar bolsitas de celofan', 'pinata', 'Pinata'),
+    ('Colocar letreros de reservados', 'montaje', 'Montaje'),
+    ('Montar mesitas infantiles', 'montaje', 'Montaje'),
+    ('Colocar centros de mesa', 'montaje', 'Montaje'),
+    ('Colocar lona decorativa', 'montaje', 'Montaje'),
+    ('Colocar marco gigante de fotos', 'montaje', 'Montaje'),
+    ('Coordinar menu contratado con salon', 'cocina-menu', 'Cocina/menu'),
+    ('Alertar restricciones alimentarias', 'cocina-menu', 'Cocina/menu'),
+    ('Coordinar servicio de cafe', 'cocina-menu', 'Cocina/menu'),
+    ('Coordinar servicio de gelatina', 'cocina-menu', 'Cocina/menu'),
+    ('Preparar mesa de dulces', 'dulces', 'Dulces'),
+    ('Mesa de dulces', 'dulces', 'Dulces'),
+    ('Coordinar bolsitas de dulces', 'dulces', 'Dulces'),
+    ('Coordinar recuerditos', 'dulces', 'Dulces'),
+    ('Recibir proveedor de decoracion', 'decoracion', 'Decoracion'),
+    ('Coordinar decoracion del cliente', 'decoracion', 'Decoracion'),
+    ('Apoyar decoracion del cliente', 'decoracion', 'Decoracion'),
+    ('Inicio de comida', 'programa-cocina', 'Programa cocina'),
+    ('Fuente de chocolate', 'programa-cocina', 'Programa cocina'),
+    ('Paletas', 'programa-cocina', 'Programa cocina'),
+    ('Helados', 'programa-cocina', 'Programa cocina'),
+    ('Tamales', 'programa-cocina', 'Programa cocina')
+),
+ensured_groups AS (
+  INSERT INTO public.task_groups (key, name)
+  SELECT DISTINCT assignment_group_key, assignment_group_label
+  FROM grouped
+  ON CONFLICT (key) DO UPDATE SET
+    name = EXCLUDED.name,
+    updated_at = NOW()
+  RETURNING id, key
+)
+UPDATE public.master_tasks
+SET assignment_group_id = ensured_groups.id,
+    assignment_group_key = grouped.assignment_group_key,
+    assignment_group_label = grouped.assignment_group_label
+FROM grouped
+JOIN ensured_groups ON ensured_groups.key = grouped.assignment_group_key
+WHERE public.master_tasks.name = grouped.task_name;

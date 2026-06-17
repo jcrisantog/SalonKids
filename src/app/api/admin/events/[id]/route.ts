@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { requireAdmin } from "@/lib/admin-api";
+import { getQuestionnaireCompletionFromRelation } from "@/lib/questionnaire-completion";
 import { syncBaseEventTasks } from "@/lib/rule-engine";
 import { supabaseAdmin } from "@/lib/supabase-server";
 
@@ -33,6 +34,17 @@ function normalizeTime(value?: string) {
   }
 
   return value.length === 5 ? `${value}:00` : value;
+}
+
+function withQuestionnaireCompletion<T extends { questionnaire_data?: unknown }>(event: T) {
+  const { questionnaire_data: questionnaireData, ...rest } = event;
+
+  return {
+    ...rest,
+    ...getQuestionnaireCompletionFromRelation(
+      questionnaireData as Parameters<typeof getQuestionnaireCompletionFromRelation>[0],
+    ),
+  };
 }
 
 async function saveClient(eventId: string, payload: EventPayload) {
@@ -124,7 +136,7 @@ export async function PATCH(request: Request, context: RouteParams) {
       })
       .eq("id", id)
       .select(
-        "id, client_id, celebratory_name, age, parents_names, event_date, start_time, end_time, token_unico, status, created_at, clients(full_name, phone, email)",
+        "id, client_id, celebratory_name, age, parents_names, event_date, start_time, end_time, token_unico, status, created_at, clients(full_name, phone, email), questionnaire_data(id, completed_at)",
       )
       .single();
 
@@ -137,7 +149,7 @@ export async function PATCH(request: Request, context: RouteParams) {
       end_time: endTime,
     });
 
-    return NextResponse.json({ event, generatedTasks });
+    return NextResponse.json({ event: withQuestionnaireCompletion(event), generatedTasks });
   } catch {
     return NextResponse.json({ error: "No se pudo actualizar el evento." }, { status: 500 });
   }

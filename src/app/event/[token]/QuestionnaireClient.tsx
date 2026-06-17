@@ -8,10 +8,15 @@ import {
   Clock,
   Loader2,
   Save,
+  Send,
   Sparkles,
 } from "lucide-react";
 
 import { ParticleField } from "@/components/client/ParticleField";
+import {
+  getQuestionnaireCompletionLabel,
+  type QuestionnaireCompletionStatus,
+} from "@/lib/questionnaire-completion";
 import {
   emptyQuestionnaire,
   getSectionProgress,
@@ -60,9 +65,12 @@ export default function QuestionnaireClient({ token }: QuestionnaireClientProps)
   const [generatedTasks, setGeneratedTasks] = useState<GeneratedEventTask[]>([]);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [activeSectionId, setActiveSectionId] = useState(questionnaireSections[0]?.id ?? "");
+  const [questionnaireStatus, setQuestionnaireStatus] =
+    useState<QuestionnaireCompletionStatus>("sin_iniciar");
+  const [completedAt, setCompletedAt] = useState<string | null>(null);
 
   const saveQuestionnaire = useCallback(
-    async (questionnaire: QuestionnaireData) => {
+    async (questionnaire: QuestionnaireData, intent: "save" | "complete" = "save") => {
       setSaveStatus("saving");
       setError(null);
 
@@ -71,7 +79,7 @@ export default function QuestionnaireClient({ token }: QuestionnaireClientProps)
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ questionnaire }),
+        body: JSON.stringify({ intent, questionnaire }),
       });
       const payload = await response.json();
 
@@ -81,6 +89,8 @@ export default function QuestionnaireClient({ token }: QuestionnaireClientProps)
 
       setGeneratedTasks(payload.generatedTasks ?? []);
       setPublicTasks(payload.publicTasks ?? []);
+      setQuestionnaireStatus(payload.questionnaireStatus ?? "en_progreso");
+      setCompletedAt(payload.completedAt ?? null);
       setSaveStatus("saved");
     },
     [token],
@@ -102,6 +112,8 @@ export default function QuestionnaireClient({ token }: QuestionnaireClientProps)
           setEvent(payload.event);
           setForm(normalizeQuestionnaire(payload.questionnaire));
           setPublicTasks(payload.publicTasks ?? []);
+          setQuestionnaireStatus(payload.questionnaireStatus ?? "sin_iniciar");
+          setCompletedAt(payload.completedAt ?? null);
           setSaveStatus(payload.updatedAt ? "saved" : "idle");
           setHasLoaded(true);
         }
@@ -168,6 +180,10 @@ export default function QuestionnaireClient({ token }: QuestionnaireClientProps)
     value: QuestionnaireData[keyof QuestionnaireData],
   ) => {
     setSaveStatus("dirty");
+    if (questionnaireStatus === "completado_por_cliente") {
+      setQuestionnaireStatus("en_progreso");
+      setCompletedAt(null);
+    }
     setForm((current) => ({ ...current, [key]: value }));
   };
 
@@ -179,6 +195,22 @@ export default function QuestionnaireClient({ token }: QuestionnaireClientProps)
       setSaveStatus("error");
     }
   }
+
+  async function handleCompleteQuestionnaire() {
+    try {
+      await saveQuestionnaire(form, "complete");
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "No se pudo enviar.");
+      setSaveStatus("error");
+    }
+  }
+
+  const completedAtLabel = completedAt
+    ? new Date(completedAt).toLocaleString("es-MX", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      })
+    : null;
 
   if (loading) {
     return (
@@ -253,6 +285,19 @@ export default function QuestionnaireClient({ token }: QuestionnaireClientProps)
                 Los cambios se guardan automaticamente despues de escribir.
               </p>
               <SaveBadge status={saveStatus} />
+              <div className="mt-4 rounded-md border border-white/10 bg-zinc-950/70 p-3">
+                <p className="text-xs font-semibold uppercase text-zinc-500">Estado del cuestionario</p>
+                <p className="mt-1 text-sm font-semibold text-white">
+                  {questionnaireStatus === "completado_por_cliente"
+                    ? "Cuestionario enviado"
+                    : getQuestionnaireCompletionLabel(questionnaireStatus)}
+                </p>
+                <p className="mt-2 text-xs leading-5 text-zinc-400">
+                  {questionnaireStatus === "completado_por_cliente"
+                    ? `Enviado${completedAtLabel ? ` el ${completedAtLabel}` : ""}. Si haces cambios, vuelve a enviarlo al terminar.`
+                    : "Cuando termines de revisar tus respuestas, envia el cuestionario para avisar al equipo."}
+                </p>
+              </div>
               {error ? (
                 <div className="mt-4 rounded-md border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-100">
                   {error}
@@ -271,6 +316,15 @@ export default function QuestionnaireClient({ token }: QuestionnaireClientProps)
               >
                 {saveStatus === "saving" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
                 Guardar ahora
+              </button>
+              <button
+                type="button"
+                onClick={handleCompleteQuestionnaire}
+                disabled={saveStatus === "saving"}
+                className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-md bg-emerald-300 px-4 font-semibold text-zinc-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {saveStatus === "saving" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                Enviar cuestionario
               </button>
             </section>
 

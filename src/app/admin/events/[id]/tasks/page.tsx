@@ -25,6 +25,7 @@ type EventTaskStatus = "pendiente" | "en_progreso" | "completada";
 type EventTaskVisibility = "interna" | "publica";
 type VisibilityFilter = "todas" | EventTaskVisibility;
 type ResponsibleFilter = "todos" | "sin_responsable" | string;
+type TaskGroupFilter = "todos" | "sin_grupo" | string;
 
 type EventSummary = {
   id: string;
@@ -53,6 +54,8 @@ type EventTask = {
   status: EventTaskStatus;
   visibility: EventTaskVisibility;
   is_manual_override: boolean;
+  source_master_task_id: string | null;
+  task_group?: TaskGroup | null;
   created_at: string;
 };
 
@@ -60,6 +63,13 @@ type StaffMember = {
   id: string;
   name: string;
   primary_role: string;
+  is_active: boolean;
+};
+
+type TaskGroup = {
+  id: string;
+  name: string;
+  key: string;
   is_active: boolean;
 };
 
@@ -151,6 +161,7 @@ export default function EventTasksPage({ params }: EventTasksPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [responsibleFilter, setResponsibleFilter] = useState<ResponsibleFilter>("todos");
   const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>("todas");
+  const [taskGroupFilter, setTaskGroupFilter] = useState<TaskGroupFilter>("todos");
   const [searchQuery, setSearchQuery] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -173,6 +184,23 @@ export default function EventTasksPage({ params }: EventTasksPageProps) {
 
     return { assignedStaff, hasUnassigned };
   }, [sortedStaff, tasks]);
+  const taskGroupOptions = useMemo(() => {
+    const groups = new Map<string, TaskGroup>();
+    let hasUngrouped = false;
+
+    for (const task of tasks) {
+      if (task.task_group?.id) {
+        groups.set(task.task_group.id, task.task_group);
+      } else {
+        hasUngrouped = true;
+      }
+    }
+
+    return {
+      groups: Array.from(groups.values()).sort((a, b) => a.name.localeCompare(b.name)),
+      hasUngrouped,
+    };
+  }, [tasks]);
   const hasSearch = normalizeSearchText(searchQuery).length > 0;
   const filteredTasks = useMemo(
     () =>
@@ -184,6 +212,10 @@ export default function EventTasksPage({ params }: EventTasksPageProps) {
             : getTaskResponsibleIds(task).includes(responsibleFilter));
         const matchesVisibility =
           visibilityFilter === "todas" || task.visibility === visibilityFilter;
+        const matchesTaskGroup =
+          taskGroupFilter === "todos" ||
+          (taskGroupFilter === "sin_grupo" && !task.task_group?.id) ||
+          task.task_group?.id === taskGroupFilter;
         const matchesQuery = matchesSearch(searchQuery, [
           task.task_name,
           task.description,
@@ -192,14 +224,19 @@ export default function EventTasksPage({ params }: EventTasksPageProps) {
           task.status,
           task.visibility === "publica" ? "Publica" : "Interna",
           getTaskResponsibleLabel(task, staffById),
+          task.task_group?.name,
+          task.task_group?.key,
         ]);
 
-        return matchesResponsible && matchesVisibility && matchesQuery;
+        return matchesResponsible && matchesVisibility && matchesTaskGroup && matchesQuery;
       }),
-    [responsibleFilter, searchQuery, staffById, tasks, visibilityFilter],
+    [responsibleFilter, searchQuery, staffById, taskGroupFilter, tasks, visibilityFilter],
   );
   const activeFilterCount =
-    (responsibleFilter === "todos" ? 0 : 1) + (visibilityFilter === "todas" ? 0 : 1) + (hasSearch ? 1 : 0);
+    (responsibleFilter === "todos" ? 0 : 1) +
+    (visibilityFilter === "todas" ? 0 : 1) +
+    (taskGroupFilter === "todos" ? 0 : 1) +
+    (hasSearch ? 1 : 0);
 
   useEffect(() => {
     let ignore = false;
@@ -350,6 +387,7 @@ export default function EventTasksPage({ params }: EventTasksPageProps) {
   function resetFilters() {
     setResponsibleFilter("todos");
     setVisibilityFilter("todas");
+    setTaskGroupFilter("todos");
     setSearchQuery("");
   }
 
@@ -913,22 +951,40 @@ export default function EventTasksPage({ params }: EventTasksPageProps) {
         <div className="border-b border-white/10 bg-white/[0.04] p-4">
           <div className="grid gap-4 xl:grid-cols-[minmax(620px,1fr)_260px] xl:items-end">
             <div className="space-y-3">
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 lg:grid-cols-3">
                 <Field label="Filtrar responsable">
                   <select
                     value={responsibleFilter}
                     onChange={(event) => setResponsibleFilter(event.target.value as ResponsibleFilter)}
                     className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-blue-300"
                   >
-                    <option value="todos">Todos los responsables</option>
+                    <option className="bg-white text-zinc-950" value="todos">Todos los responsables</option>
                     {responsibleOptions.assignedStaff.map((member) => (
-                      <option key={member.id} value={member.id}>
+                      <option className="bg-white text-zinc-950" key={member.id} value={member.id}>
                         {member.name}
                         {member.is_active ? "" : " (inactivo)"}
                       </option>
                     ))}
                     {responsibleOptions.hasUnassigned ? (
-                      <option value="sin_responsable">Sin responsable</option>
+                      <option className="bg-white text-zinc-950" value="sin_responsable">Sin responsable</option>
+                    ) : null}
+                  </select>
+                </Field>
+                <Field label="Filtrar grupo de tareas">
+                  <select
+                    value={taskGroupFilter}
+                    onChange={(event) => setTaskGroupFilter(event.target.value as TaskGroupFilter)}
+                    className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-blue-300"
+                  >
+                    <option className="bg-white text-zinc-950" value="todos">Todos los grupos</option>
+                    {taskGroupOptions.groups.map((group) => (
+                      <option className="bg-white text-zinc-950" key={group.id} value={group.id}>
+                        {group.name}
+                        {group.is_active ? "" : " (inactivo)"}
+                      </option>
+                    ))}
+                    {taskGroupOptions.hasUngrouped ? (
+                      <option className="bg-white text-zinc-950" value="sin_grupo">Sin grupo</option>
                     ) : null}
                   </select>
                 </Field>
@@ -938,9 +994,9 @@ export default function EventTasksPage({ params }: EventTasksPageProps) {
                     onChange={(event) => setVisibilityFilter(event.target.value as VisibilityFilter)}
                     className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-blue-300"
                   >
-                    <option value="todas">Todas</option>
-                    <option value="interna">Interna</option>
-                    <option value="publica">Publica</option>
+                    <option className="bg-white text-zinc-950" value="todas">Todas</option>
+                    <option className="bg-white text-zinc-950" value="interna">Interna</option>
+                    <option className="bg-white text-zinc-950" value="publica">Publica</option>
                   </select>
                 </Field>
               </div>

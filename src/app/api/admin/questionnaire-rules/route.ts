@@ -41,11 +41,11 @@ const validOperators: QuestionnaireRuleOperator[] = [
 ];
 
 const rulesSelect =
-  "id, field_key, field_label, section_id, section_title, operator, expected_value, is_active, created_at, updated_at, questionnaire_task_rule_tasks(id, master_task_id, override_description, override_scheduled_time, override_role_responsible, override_staff_id, override_visibility, sort_order, questionnaire_task_rule_task_staff(staff_id, sort_order, staff(id, name, primary_role, is_active)), master_tasks(id, name, base_description, visibility, area, default_role, default_staff_id, required_responsible_count, master_task_default_staff(staff_id, sort_order, staff(id, name, primary_role, is_active))))";
+  "id, field_key, field_label, section_id, section_title, operator, expected_value, is_active, created_at, updated_at, questionnaire_task_rule_tasks(id, master_task_id, override_description, override_scheduled_time, override_role_responsible, override_staff_id, override_visibility, sort_order, questionnaire_task_rule_task_staff(staff_id, sort_order, staff(id, name, primary_role, is_active)), master_tasks(id, name, base_description, visibility, area, default_role, default_staff_id, required_responsible_count, assignment_group_id, assignment_group_key, assignment_group_label, task_groups(id, name, key, is_active), master_task_default_staff(staff_id, sort_order, staff(id, name, primary_role, is_active))))";
 const legacyRulesSelect =
   "id, field_key, field_label, section_id, section_title, operator, expected_value, is_active, created_at, updated_at, questionnaire_task_rule_tasks(id, master_task_id, override_description, override_scheduled_time, override_role_responsible, override_staff_id, override_visibility, sort_order, master_tasks(id, name, base_description, visibility, area, default_role, default_staff_id))";
 const masterTasksSelect =
-  "id, name, base_description, visibility, area, default_role, default_staff_id, required_responsible_count, master_task_default_staff(staff_id, sort_order, staff(id, name, primary_role, is_active))";
+  "id, name, base_description, visibility, area, default_role, default_staff_id, required_responsible_count, assignment_group_id, assignment_group_key, assignment_group_label, task_groups(id, name, key, is_active), master_task_default_staff(staff_id, sort_order, staff(id, name, primary_role, is_active))";
 const legacyMasterTasksSelect = "id, name, base_description, visibility, area, default_role, default_staff_id";
 
 type QueryError = { code?: string; message?: string; details?: string } | null;
@@ -112,7 +112,8 @@ export async function GET(request: Request) {
     return auth.response;
   }
 
-  let [rulesResult, tasksResult, staffResult]: [
+  let [rulesResult, tasksResult, staffResult, groupsResult]: [
+    QueryResult<unknown>,
     QueryResult<unknown>,
     QueryResult<unknown>,
     QueryResult<unknown>,
@@ -132,10 +133,15 @@ export async function GET(request: Request) {
       .from("staff")
       .select("id, name, primary_role, is_active")
       .order("name", { ascending: true }),
+    supabaseAdmin
+      .from("task_groups")
+      .select("id, name, key, description, is_active, sort_order")
+      .order("sort_order", { ascending: true })
+      .order("name", { ascending: true }),
   ]);
 
   if (isMissingRelationError(rulesResult.error) || isMissingRelationError(tasksResult.error)) {
-    [rulesResult, tasksResult, staffResult] = await Promise.all([
+    [rulesResult, tasksResult, staffResult, groupsResult] = await Promise.all([
       supabaseAdmin
         .from("questionnaire_task_rules")
         .select(legacyRulesSelect)
@@ -151,10 +157,15 @@ export async function GET(request: Request) {
         .from("staff")
         .select("id, name, primary_role, is_active")
         .order("name", { ascending: true }),
+      supabaseAdmin
+        .from("task_groups")
+        .select("id, name, key, description, is_active, sort_order")
+        .order("sort_order", { ascending: true })
+        .order("name", { ascending: true }),
     ]);
   }
 
-  if (rulesResult.error || tasksResult.error || staffResult.error) {
+  if (rulesResult.error || tasksResult.error || staffResult.error || groupsResult.error) {
     return NextResponse.json({ error: "No se pudieron cargar las reglas." }, { status: 500 });
   }
 
@@ -162,6 +173,7 @@ export async function GET(request: Request) {
     rules: rulesResult.data ?? [],
     masterTasks: tasksResult.data ?? [],
     staff: staffResult.data ?? [],
+    taskGroups: groupsResult.data ?? [],
     fields: getQuestionnaireFieldCatalog(),
     operators: validOperators,
   });

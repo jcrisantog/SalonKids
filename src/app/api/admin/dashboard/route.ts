@@ -12,7 +12,13 @@ export async function GET(request: Request) {
 
   const today = new Date().toISOString().slice(0, 10);
 
-  const [eventsResult, activeStaffResult, masterTasksResult, pendingTasksResult] =
+  const [
+    eventsResult,
+    activeStaffResult,
+    masterTasksResult,
+    pendingTasksResult,
+    completedQuestionnairesResult,
+  ] =
     await Promise.all([
       supabaseAdmin
         .from("events")
@@ -27,13 +33,18 @@ export async function GET(request: Request) {
         .from("event_tasks")
         .select("id", { count: "exact", head: true })
         .eq("status", "pendiente"),
+      supabaseAdmin
+        .from("questionnaire_data")
+        .select("id", { count: "exact", head: true })
+        .not("completed_at", "is", null),
     ]);
 
   const firstError =
     eventsResult.error ||
     activeStaffResult.error ||
     masterTasksResult.error ||
-    pendingTasksResult.error;
+    pendingTasksResult.error ||
+    completedQuestionnairesResult.error;
 
   if (firstError) {
     return NextResponse.json(
@@ -47,5 +58,6 @@ export async function GET(request: Request) {
     activeStaff: activeStaffResult.count ?? 0,
     masterTasks: masterTasksResult.count ?? 0,
     pendingTasks: pendingTasksResult.count ?? 0,
+    completedQuestionnaires: completedQuestionnairesResult.count ?? 0,
   });
 }

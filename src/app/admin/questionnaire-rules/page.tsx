@@ -39,6 +39,10 @@ type MasterTask = {
   default_staff_id: string | null;
   default_staff_ids?: string[];
   required_responsible_count: number;
+  assignment_group_id: string | null;
+  assignment_group_key: string | null;
+  assignment_group_label: string | null;
+  task_groups?: TaskGroup | null;
   master_task_default_staff?: Array<{
     staff_id: string;
     sort_order: number | null;
@@ -51,6 +55,15 @@ type StaffMember = {
   name: string;
   primary_role: string;
   is_active: boolean;
+};
+
+type TaskGroup = {
+  id: string;
+  name: string;
+  key: string;
+  description?: string | null;
+  is_active: boolean;
+  sort_order?: number | null;
 };
 
 type RuleTask = {
@@ -97,6 +110,7 @@ type TaskCreationForm = {
   visibility: "interna" | "publica";
   default_staff_ids: string[];
   required_responsible_count: string;
+  assignment_group_id: string;
 };
 
 const operatorLabels: Record<QuestionnaireRuleOperator, string> = {
@@ -136,6 +150,7 @@ const emptyTaskCreationForm: TaskCreationForm = {
   visibility: "interna",
   default_staff_ids: [],
   required_responsible_count: "1",
+  assignment_group_id: "",
 };
 
 function getSelectValues(select: HTMLSelectElement) {
@@ -175,6 +190,7 @@ export default function QuestionnaireRulesPage() {
   const [fields, setFields] = useState<FieldOption[]>([]);
   const [masterTasks, setMasterTasks] = useState<MasterTask[]>([]);
   const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [taskGroups, setTaskGroups] = useState<TaskGroup[]>([]);
   const [form, setForm] = useState<RuleForm>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<QuestionnaireRule | null>(null);
@@ -215,6 +231,7 @@ export default function QuestionnaireRulesPage() {
     setFields(payload.fields ?? []);
     setMasterTasks(payload.masterTasks ?? []);
     setStaff(payload.staff ?? []);
+    setTaskGroups(payload.taskGroups ?? []);
   }, [adminFetch]);
 
   useEffect(() => {
@@ -292,6 +309,17 @@ export default function QuestionnaireRulesPage() {
         return a.name.localeCompare(b.name);
       }),
     [staff],
+  );
+  const activeTaskGroups = useMemo(
+    () =>
+      [...taskGroups]
+        .filter((group) => group.is_active)
+        .sort((a, b) => {
+          const orderComparison = (a.sort_order ?? 0) - (b.sort_order ?? 0);
+
+          return orderComparison || a.name.localeCompare(b.name);
+        }),
+    [taskGroups],
   );
   const staffById = useMemo(() => new Map(staff.map((member) => [member.id, member])), [staff]);
 
@@ -404,6 +432,7 @@ export default function QuestionnaireRulesPage() {
         visibility: taskCreationForm.visibility,
         default_staff_ids: taskCreationForm.default_staff_ids,
         required_responsible_count: taskCreationForm.required_responsible_count,
+        assignment_group_id: taskCreationForm.assignment_group_id,
       };
       const result = (await adminFetch("/api/admin/tasks", {
         method: "POST",
@@ -915,6 +944,7 @@ export default function QuestionnaireRulesPage() {
         onSubmit={createTaskFromModal}
         open={taskModalIndex !== null}
         staff={sortedStaff}
+        taskGroups={activeTaskGroups}
       />
       <AdminToast message={toastMessage} onClose={() => setToastMessage(null)} />
     </div>
@@ -939,6 +969,7 @@ function TaskCreationModal({
   onSubmit,
   open,
   staff,
+  taskGroups,
 }: {
   error: string | null;
   form: TaskCreationForm;
@@ -948,6 +979,7 @@ function TaskCreationModal({
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
   open: boolean;
   staff: StaffMember[];
+  taskGroups: TaskGroup[];
 }) {
   if (!open) {
     return null;
@@ -1024,6 +1056,20 @@ function TaskCreationModal({
               onChange={(event) => onChange({ required_responsible_count: event.target.value })}
               className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-purple-300"
             />
+          </Field>
+          <Field label="Grupo de asignacion">
+            <select
+              value={form.assignment_group_id}
+              onChange={(event) => onChange({ assignment_group_id: event.target.value })}
+              className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-purple-300"
+            >
+              <option value="">Sin grupo</option>
+              {taskGroups.map((group) => (
+                <option key={group.id} value={group.id}>
+                  {group.name}
+                </option>
+              ))}
+            </select>
           </Field>
           <label className="block sm:col-span-2">
             <span className="mb-2 block text-sm font-medium text-gray-300">Descripcion base</span>

@@ -241,6 +241,9 @@ type MasterTaskTemplate = {
   default_role: string | null;
   default_staff_id: string | null;
   required_responsible_count?: number | null;
+  assignment_group_id?: string | null;
+  assignment_group_key?: string | null;
+  assignment_group_label?: string | null;
   master_task_default_staff?: StaffAssignmentMember[] | null;
 };
 
@@ -277,6 +280,9 @@ export type ConfigurableRuleTask = {
     default_role: string | null;
     default_staff_id: string | null;
     required_responsible_count?: number | null;
+    assignment_group_id?: string | null;
+    assignment_group_key?: string | null;
+    assignment_group_label?: string | null;
     master_task_default_staff?: StaffAssignmentMember[] | null;
   } | Array<{
     id: string;
@@ -287,6 +293,9 @@ export type ConfigurableRuleTask = {
     default_role: string | null;
     default_staff_id: string | null;
     required_responsible_count?: number | null;
+    assignment_group_id?: string | null;
+    assignment_group_key?: string | null;
+    assignment_group_label?: string | null;
     master_task_default_staff?: StaffAssignmentMember[] | null;
   }> | null;
 };
@@ -1043,7 +1052,7 @@ export async function loadActiveQuestionnaireRules(supabase: SupabaseClient) {
   const { data, error } = await supabase
     .from("questionnaire_task_rules")
     .select(
-      "id, field_key, field_label, section_id, section_title, operator, expected_value, is_active, questionnaire_task_rule_tasks(id, override_description, override_scheduled_time, override_role_responsible, override_staff_id, override_visibility, sort_order, questionnaire_task_rule_task_staff(staff_id, sort_order), master_tasks(id, name, base_description, visibility, area, default_role, default_staff_id, required_responsible_count, master_task_default_staff(staff_id, sort_order)))",
+      "id, field_key, field_label, section_id, section_title, operator, expected_value, is_active, questionnaire_task_rule_tasks(id, override_description, override_scheduled_time, override_role_responsible, override_staff_id, override_visibility, sort_order, questionnaire_task_rule_task_staff(staff_id, sort_order), master_tasks(id, name, base_description, visibility, area, default_role, default_staff_id, required_responsible_count, assignment_group_id, assignment_group_key, assignment_group_label, master_task_default_staff(staff_id, sort_order)))",
     )
     .eq("is_active", true)
     .order("section_id", { ascending: true });
@@ -1354,7 +1363,7 @@ export async function syncBaseEventTasks(
 ) {
   const { data: templates, error: templatesError } = await supabase
     .from("master_tasks")
-    .select("id, name, base_description, visibility, area, default_role, default_staff_id, required_responsible_count, master_task_default_staff(staff_id, sort_order)");
+    .select("id, name, base_description, visibility, area, default_role, default_staff_id, required_responsible_count, assignment_group_id, assignment_group_key, assignment_group_label, master_task_default_staff(staff_id, sort_order)");
 
   if (templatesError) {
     throw templatesError;

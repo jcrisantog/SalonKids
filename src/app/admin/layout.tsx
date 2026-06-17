@@ -10,6 +10,7 @@ import {
   PlugZap,
   SlidersHorizontal,
   Sparkles,
+  Tags,
   Users,
 } from "lucide-react";
 import Link from "next/link";
@@ -54,6 +55,7 @@ export default function AdminLayout({
           </div>
           <NavLink href="/admin/staff" icon={<Users size={20} />} label="Personal / Staff" />
           <NavLink href="/admin/tasks" icon={<CheckSquare size={20} />} label="Tareas Maestras" />
+          <NavLink href="/admin/task-groups" icon={<Tags size={20} />} label="Grupos de Tareas" />
           <NavLink href="/admin/questionnaire-rules" icon={<SlidersHorizontal size={20} />} label="Reglas Cuestionario" />
           <NavLink href="/admin/guidelines-notices" icon={<FileText size={20} />} label="Lineamientos y Avisos" />
         </nav>

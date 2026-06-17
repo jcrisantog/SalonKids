@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Calendar, CheckSquare, Loader2, Sparkles, Users } from "lucide-react";
+import { Calendar, CheckSquare, ClipboardCheck, Loader2, Sparkles, Users } from "lucide-react";
 
 type DashboardStats = {
   upcomingEvents: number;
   activeStaff: number;
   masterTasks: number;
   pendingTasks: number;
+  completedQuestionnaires: number;
 };
 
 export default function DashboardPage() {
@@ -44,7 +45,7 @@ export default function DashboardPage() {
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-5">
         <StatCard
           icon={<Calendar className="text-blue-400" />}
           label="Eventos Proximos"
@@ -68,6 +69,12 @@ export default function DashboardPage() {
           label="Backlog Pendiente"
           value={stats ? String(stats.pendingTasks) : "..."}
           trend="Tareas de eventos por cerrar"
+        />
+        <StatCard
+          icon={<ClipboardCheck className="text-cyan-400" />}
+          label="Cuestionarios Enviados"
+          value={stats ? String(stats.completedQuestionnaires) : "..."}
+          trend="Completados por cliente"
         />
       </div>
 

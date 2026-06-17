@@ -43,8 +43,26 @@ type MasterTaskForAssignment = {
   id: string;
   name: string;
   required_responsible_count: number | null;
+  assignment_group_id?: string | null;
+  assignment_group_key?: string | null;
+  assignment_group_label?: string | null;
   default_staff_id?: string | null;
   master_task_default_staff?: StaffAssignmentMember[] | null;
+};
+
+type TaskAssignmentContext = {
+  task: EventTaskForAssignment;
+  ruleTask: RuleTaskForAssignment | null;
+  masterTask: MasterTaskForAssignment | null;
+  existing: string[];
+  defaultIds: string[];
+  legacyDefaultIds: string[];
+  requiredCount: number;
+};
+
+type AssignmentUnit = {
+  key: string;
+  tasks: TaskAssignmentContext[];
 };
 
 function sameIds(a: string[], b: string[]) {
@@ -67,8 +85,59 @@ function addUnique(target: string[], candidates: string[], limit: number) {
   }
 }
 
+function addAllUnique(target: string[], candidates: string[]) {
+  for (const candidate of candidates) {
+    if (!target.includes(candidate)) {
+      target.push(candidate);
+    }
+  }
+}
+
 function normalizeName(value: string) {
   return value.trim().toLowerCase();
+}
+
+function buildAssignmentUnits(contexts: TaskAssignmentContext[]) {
+  const units: AssignmentUnit[] = [];
+  const groupedUnits = new Map<string, AssignmentUnit>();
+
+  for (const context of contexts) {
+    const catalogGroupId = context.masterTask?.assignment_group_id?.trim();
+    const legacyGroupKey = context.masterTask?.assignment_group_key?.trim();
+    const groupKey = catalogGroupId ? `id:${catalogGroupId}` : legacyGroupKey ? `legacy:${legacyGroupKey}` : "";
+
+    if (!groupKey) {
+      units.push({ key: `task:${context.task.id}`, tasks: [context] });
+      continue;
+    }
+
+    const unit = groupedUnits.get(groupKey) ?? { key: `group:${groupKey}`, tasks: [] };
+    unit.tasks.push(context);
+    groupedUnits.set(groupKey, unit);
+  }
+
+  return [...groupedUnits.values(), ...units];
+}
+
+function getUnitExistingIds(unit: AssignmentUnit, mode: AssignmentMode) {
+  if (mode === "replace") {
+    return [];
+  }
+
+  const existingIds: string[] = [];
+  unit.tasks.forEach((context) => addAllUnique(existingIds, context.existing));
+
+  return existingIds;
+}
+
+function getUnitDefaultIds(unit: AssignmentUnit) {
+  const defaultIds: string[] = [];
+
+  for (const context of unit.tasks) {
+    addAllUnique(defaultIds, context.defaultIds.length ? context.defaultIds : context.legacyDefaultIds);
+  }
+
+  return defaultIds;
 }
 
 export async function POST(request: Request, context: RouteParams) {
@@ -150,7 +219,7 @@ export async function POST(request: Request, context: RouteParams) {
   let masterTasksResult: QueryResult<unknown> = masterTaskIds.length || taskNames.length
     ? await supabaseAdmin
         .from("master_tasks")
-        .select("id, name, default_staff_id, required_responsible_count, master_task_default_staff(staff_id, sort_order)")
+        .select("id, name, default_staff_id, required_responsible_count, assignment_group_id, assignment_group_key, assignment_group_label, master_task_default_staff(staff_id, sort_order)")
         .or(
           [
             masterTaskIds.length ? `id.in.(${masterTaskIds.join(",")})` : "",
@@ -188,71 +257,84 @@ export async function POST(request: Request, context: RouteParams) {
   const masterTasks = (masterTasksResult.data ?? []) as MasterTaskForAssignment[];
   const masterTaskById = new Map(masterTasks.map((masterTask) => [masterTask.id, masterTask]));
   const masterTaskByName = new Map(masterTasks.map((masterTask) => [normalizeName(masterTask.name), masterTask]));
-  let updated = 0;
-  let incomplete = 0;
-  let unchanged = 0;
-  let errors = 0;
-
-  for (const task of tasks) {
-    const ruleTask = task.source_rule_task_id ? ruleTaskById.get(task.source_rule_task_id) : null;
+  const taskContexts: TaskAssignmentContext[] = tasks.map((task) => {
+    const ruleTask = task.source_rule_task_id ? ruleTaskById.get(task.source_rule_task_id) ?? null : null;
     const masterTaskId = task.source_master_task_id ?? ruleTask?.master_task_id ?? null;
     const masterTask = masterTaskId
-      ? masterTaskById.get(masterTaskId) ?? masterTaskByName.get(normalizeName(task.task_name))
-      : masterTaskByName.get(normalizeName(task.task_name));
-    const requiredCount = masterTask?.required_responsible_count ?? 1;
+      ? masterTaskById.get(masterTaskId) ?? masterTaskByName.get(normalizeName(task.task_name)) ?? null
+      : masterTaskByName.get(normalizeName(task.task_name)) ?? null;
     const existing = getAssignedStaffIds(task.event_task_staff);
 
     if (existing.length === 0 && task.staff_id) {
       existing.push(task.staff_id);
     }
 
-    const nextStaffIds = mode === "replace" ? [] : [...existing];
     const ruleDefaults = getAssignedStaffIds(ruleTask?.questionnaire_task_rule_task_staff);
     const masterDefaults = getAssignedStaffIds(masterTask?.master_task_default_staff);
-    const defaultIds = ruleDefaults.length ? ruleDefaults : masterDefaults;
-    const legacyDefaultIds = [
-      ruleTask?.override_staff_id || masterTask?.default_staff_id,
-    ].filter(Boolean) as string[];
 
-    addUnique(nextStaffIds, defaultIds.length ? defaultIds : legacyDefaultIds, requiredCount);
+    return {
+      task,
+      ruleTask,
+      masterTask,
+      existing,
+      defaultIds: ruleDefaults.length ? ruleDefaults : masterDefaults,
+      legacyDefaultIds: [ruleTask?.override_staff_id || masterTask?.default_staff_id].filter(Boolean) as string[],
+      requiredCount: masterTask?.required_responsible_count ?? 1,
+    };
+  });
+  const assignmentUnits = buildAssignmentUnits(taskContexts);
+  let updated = 0;
+  let incomplete = 0;
+  let unchanged = 0;
+  let errors = 0;
+
+  for (const unit of assignmentUnits) {
+    const requiredCount = Math.max(...unit.tasks.map((context) => context.requiredCount), 1);
+    const nextStaffIds = getUnitExistingIds(unit, mode);
+
+    addUnique(nextStaffIds, getUnitDefaultIds(unit), requiredCount);
     addUnique(nextStaffIds, shuffleIds(activeStaffIds), requiredCount);
 
     if (nextStaffIds.length < requiredCount) {
       incomplete += 1;
     }
 
-    if (mode === "complete" && sameIds(existing, nextStaffIds)) {
-      unchanged += 1;
+    const unitUnchanged = unit.tasks.every((context) => sameIds(context.existing, nextStaffIds));
+
+    if (mode === "complete" && unitUnchanged) {
+      unchanged += unit.tasks.length;
       continue;
     }
 
-    const { error: updateError } = await supabaseAdmin
-      .from("event_tasks")
-      .update({
-        staff_id: nextStaffIds[0] ?? null,
-        is_manual_override: true,
-      })
-      .eq("id", task.id)
-      .eq("event_id", id);
+    for (const { task } of unit.tasks) {
+      const { error: updateError } = await supabaseAdmin
+        .from("event_tasks")
+        .update({
+          staff_id: nextStaffIds[0] ?? null,
+          is_manual_override: true,
+        })
+        .eq("id", task.id)
+        .eq("event_id", id);
 
-    if (updateError) {
-      errors += 1;
-      continue;
+      if (updateError) {
+        errors += 1;
+        continue;
+      }
+
+      const relationError = await replaceStaffRelations({
+        table: "event_task_staff",
+        ownerColumn: "event_task_id",
+        ownerId: task.id,
+        staffIds: nextStaffIds,
+      });
+
+      if (relationError) {
+        errors += 1;
+        continue;
+      }
+
+      updated += 1;
     }
-
-    const relationError = await replaceStaffRelations({
-      table: "event_task_staff",
-      ownerColumn: "event_task_id",
-      ownerId: task.id,
-      staffIds: nextStaffIds,
-    });
-
-    if (relationError) {
-      errors += 1;
-      continue;
-    }
-
-    updated += 1;
   }
 
   return NextResponse.json({

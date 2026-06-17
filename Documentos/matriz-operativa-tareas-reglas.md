@@ -11,76 +11,84 @@ Esta matriz resume la base inicial que se entrega para que la duena del sistema 
 
 Los seeds son idempotentes: se pueden reejecutar sin crear tareas maestras duplicadas ni duplicar la misma tarea dentro de una regla.
 
+## Agrupacion de asignacion
+
+La columna "Grupo asignacion" indica que todas las tareas asociadas al mismo grupo del catalogo `task_groups` deben asignarse como bloque a la misma persona o lista de personas durante la autoasignacion. Las tareas marcadas como "Sin grupo" conservan asignacion individual.
+
+El nombre visible y la clave operativa del grupo se administran desde el catalogo de grupos de tareas. Las tareas maestras deben seleccionar un grupo existente desde el combo del admin; las columnas heredadas `assignment_group_key` y `assignment_group_label` se mantienen como compatibilidad de migracion y fallback tecnico.
+
+El grupo `Arenero` queda soportado creando primero el grupo en el catalogo y seleccionandolo en las tareas creadas manualmente o futuras tareas sembradas de esa area; la base inicial actual no contiene tareas de Arenero.
+
 ## Tareas base de entrada y cierre
 
 Estas tareas aplican a todos los eventos. Se siembran como `master_tasks` y el sistema las usa como plantillas base al crear o sincronizar el evento.
 
-| Categoria | Tarea | Area | Visibilidad | Rol sugerido | Motivo |
-| --- | --- | --- | --- | --- | --- |
-| Indispensable | Entrada - Revision inicial del salon | Entrada | interna | Coordinadora | Abrir salon y validar limpieza, banos, cocina, pista y area infantil. |
-| Indispensable | Entrada - Encendido y prueba tecnica | Entrada | interna | DJ | Probar sonido, microfono, luces, pantalla o proyector. |
-| Indispensable | Montaje - Mesas y flujo de invitados | Montaje | interna | Coordinadora | Revisar acomodo, manteleria, bebidas, mesa principal, regalos y reservados. |
-| Indispensable | Montaje - Recepcion de familia y articulos | Montaje | interna | Apoyo | Recibir pastel, regalos, centros, dulces, recuerdos y articulos del cliente. |
-| Recomendada | Montaje - Recepcion de proveedores | Montaje | interna | Coordinadora | Recibir proveedores externos e indicar zonas permitidas. |
-| Indispensable | Entrada - Seguridad de areas infantiles | Entrada | interna | Coordinadora | Revisar cama elastica, tirolesa, calcetas, deslindes e instrucciones. |
-| Indispensable | Cierre - Bajar pertenencias de anfitriones | Cierre | interna | Apoyo | Ayudar a bajar pertenencias, regalos, dulces y articulos de la familia. |
-| Indispensable | Cierre - Retirar charolas y loza | Cierre | interna | Cocina | Retirar charolas y separar material reutilizable. |
-| Indispensable | Cierre - Separar residuos | Cierre | interna | Limpieza | Separar organico e inorganico y retirar bolsas. |
-| Indispensable | Cierre - Doblar y resguardar manteleria | Cierre | interna | Apoyo | Doblar hojas o manteles y separar piezas manchadas. |
-| Indispensable | Cierre - Limpieza final de areas | Cierre | interna | Limpieza | Revisar banos, cocina, pista, mesas, area infantil y accesos. |
-| Recomendada | Cierre - Resguardo y reporte final | Cierre | interna | Coordinadora | Confirmar salida, objetos olvidados y pendientes. |
+| Categoria | Tarea | Area | Visibilidad | Rol sugerido | Grupo asignacion | Motivo |
+| --- | --- | --- | --- | --- | --- | --- |
+| Indispensable | Entrada - Revision inicial del salon | Entrada | interna | Coordinadora | Sin grupo | Abrir salon y validar limpieza, banos, cocina, pista y area infantil. |
+| Indispensable | Entrada - Encendido y prueba tecnica | Entrada | interna | DJ | Audio/DJ | Probar sonido, microfono, luces, pantalla o proyector. |
+| Indispensable | Montaje - Mesas y flujo de invitados | Montaje | interna | Coordinadora | Montaje | Revisar acomodo, manteleria, bebidas, mesa principal, regalos y reservados. |
+| Indispensable | Montaje - Recepcion de familia y articulos | Montaje | interna | Apoyo | Montaje | Recibir pastel, regalos, centros, dulces, recuerdos y articulos del cliente. |
+| Recomendada | Montaje - Recepcion de proveedores | Montaje | interna | Coordinadora | Sin grupo | Recibir proveedores externos e indicar zonas permitidas. |
+| Indispensable | Entrada - Seguridad de areas infantiles | Entrada | interna | Coordinadora | Sin grupo | Revisar cama elastica, tirolesa, calcetas, deslindes e instrucciones. |
+| Indispensable | Cierre - Bajar pertenencias de anfitriones | Cierre | interna | Apoyo | Cierre apoyo | Ayudar a bajar pertenencias, regalos, dulces y articulos de la familia. |
+| Indispensable | Cierre - Retirar charolas y loza | Cierre | interna | Cocina | Sin grupo | Retirar charolas y separar material reutilizable. |
+| Indispensable | Cierre - Separar residuos | Cierre | interna | Limpieza | Cierre limpieza | Separar organico e inorganico y retirar bolsas. |
+| Indispensable | Cierre - Doblar y resguardar manteleria | Cierre | interna | Apoyo | Cierre apoyo | Doblar hojas o manteles y separar piezas manchadas. |
+| Indispensable | Cierre - Limpieza final de areas | Cierre | interna | Limpieza | Cierre limpieza | Revisar banos, cocina, pista, mesas, area infantil y accesos. |
+| Recomendada | Cierre - Resguardo y reporte final | Cierre | interna | Coordinadora | Sin grupo | Confirmar salida, objetos olvidados y pendientes. |
 
 ## Reglas activas sembradas
 
 Estas respuestas generan tareas desde `questionnaire_task_rules`.
 
-| Seccion | Campo | Condicion | Tareas generadas | Nota |
-| --- | --- | --- | --- | --- |
-| Datos generales | `guestCount` | Mayor que 80 | Ajustar montaje por aforo alto | Regla interna para eventos grandes. |
-| Pastel | `cake` | Verdadero | Preparar mesa y accesorios de pastel; Protocolo de pastel | Una tarea interna y una publica. |
-| Pastel | `cakeSparklers` | Verdadero | Preparar chisperos o bombas de pastel | Seguridad y preparacion. |
-| Pastel | `cakeBazookas` | Verdadero | Preparar bazukas de color | Seguridad y limpieza posterior. |
-| Pastel | `cakeSouvenirs` | Verdadero | Coordinar souvenirs de pastel | Reparto durante o despues de pastel. |
-| Musica | `blockedGenres` | Respondido | Bloquear musica no deseada | Interna para DJ. |
-| Musica | `djDanceMusic` | Verdadero | Preparar bloque de baile | Publica porque puede aparecer en itinerario. |
-| Musica | `microphoneNeeded` | Verdadero | Preparar microfono para mensajes | Interna de audio. |
-| Musica | `projectorNeeded` | Verdadero | Preparar proyector o pantalla | Interna de audio. |
-| Presentacion | `presentation` | Verdadero | Presentacion del festejado | Publica. |
-| Presentacion | `characterShow` | Verdadero | Preparar aparicion de personaje; Aparicion de personaje | Interna y publica. |
-| Presentacion | `photoSession` | Verdadero | Sesion de fotos | Publica. |
-| Presentacion | `surpriseGift` | Verdadero | Preparar sorpresa especial | Publica. |
-| Pinata | `pinata` | Verdadero | Preparar area de pinata; Pinata | Interna y publica. |
-| Pinata | `pinataCellophaneBags` | Verdadero | Preparar bolsitas de celofan | Interna. |
-| Mesas | `reservedTables` | Verdadero | Colocar letreros de reservados | Interna. |
-| Mesas | `kidsTables` | Verdadero | Montar mesitas infantiles | Interna. |
-| Menu salon | `salonMenu` | Verdadero | Coordinar menu contratado con salon | Interna de cocina. |
-| Menu salon | `allergies` | Respondido | Alertar restricciones alimentarias | Interna critica. |
-| Menu externo | `externalMenu` | Verdadero | Coordinar proveedor o menu externo | Interna. |
-| Cafe/dulces | `coffeeServiceTiming` | Respondido | Coordinar servicio de cafe | Interna. |
-| Cafe/dulces | `centerpieces` | Verdadero | Colocar centros de mesa | Interna. |
-| Cafe/dulces | `candyTable` | Verdadero | Preparar mesa de dulces; Mesa de dulces | Interna y publica. |
-| Cafe/dulces | `gelatin` | Verdadero | Coordinar servicio de gelatina | Interna. |
-| Servicios | `nannyService` | Verdadero | Coordinar servicio de nanny | Interna. |
-| Servicios | `valetCarCount` | Mayor que 0 | Coordinar valet o estacionamiento | Interna. |
-| Servicios | `extraWaiters` | Verdadero | Coordinar meseros adicionales | Interna. |
-| Decoracion | `externalDecoration` | Verdadero | Recibir proveedor de decoracion | Interna. |
-| Decoracion | `clientDecoration` | Verdadero | Coordinar decoracion del cliente | Interna. |
-| Decoracion | `staffDecorationSupport` | Verdadero | Apoyar decoracion del cliente | Interna. |
-| Varios | `photoCanvas` | Verdadero | Colocar lona decorativa | Interna. |
-| Varios | `giantPhotoFrame` | Verdadero | Colocar marco gigante de fotos | Interna. |
-| Varios | `candyBags` | Verdadero | Coordinar bolsitas de dulces | Interna. |
-| Varios | `souvenirs` | Verdadero | Coordinar recuerditos | Interna. |
-| Dinamicas | `danceGames` | Verdadero | Preparar dinamicas seleccionadas | Publica. |
-| Dinamicas | `chocolateMedals` | Verdadero | Preparar medallas de chocolate | Interna. |
-| Seguridad | `trampolineSocksOption` | Respondido | Confirmar calcetas y seguridad | Interna. |
-| Programa | `foodStartTime` | Respondido | Inicio de comida | Usa la hora capturada. |
-| Programa | `showTime` | Respondido | Show contratado | Usa la hora capturada. |
-| Programa | `chocolateFountainTime` | Respondido | Fuente de chocolate | Usa la hora capturada. |
-| Programa | `popsiclesTime` | Respondido | Paletas | Usa la hora capturada. |
-| Programa | `iceCreamTime` | Respondido | Helados | Usa la hora capturada. |
-| Programa | `tamalesTime` | Respondido | Tamales | Usa la hora capturada. |
-| Programa | `celebratoryDanceTime` | Respondido | Baile del festejado | Usa la hora capturada. |
-| Programa | `otherActivityTime` | Respondido | Otra actividad programada | Sin hora automatica porque el campo es texto. |
+| Seccion | Campo | Condicion | Tareas generadas | Grupo asignacion | Nota |
+| --- | --- | --- | --- | --- | --- |
+| Datos generales | `guestCount` | Mayor que 80 | Ajustar montaje por aforo alto | Sin grupo | Regla interna para eventos grandes. |
+| Pastel | `cake` | Verdadero | Preparar mesa y accesorios de pastel; Protocolo de pastel | Pastel | Una tarea interna y una publica. |
+| Pastel | `cakeSparklers` | Verdadero | Preparar chisperos o bombas de pastel | Pastel | Seguridad y preparacion. |
+| Pastel | `cakeBazookas` | Verdadero | Preparar bazukas de color | Pastel | Seguridad y limpieza posterior. |
+| Pastel | `cakeSouvenirs` | Verdadero | Coordinar souvenirs de pastel | Pastel | Reparto durante o despues de pastel. |
+| Musica | `blockedGenres` | Respondido | Bloquear musica no deseada | Audio/DJ | Interna para DJ. |
+| Musica | `djDanceMusic` | Verdadero | Preparar bloque de baile | Audio/DJ | Publica porque puede aparecer en itinerario. |
+| Musica | `microphoneNeeded` | Verdadero | Preparar microfono para mensajes | Audio/DJ | Interna de audio. |
+| Musica | `projectorNeeded` | Verdadero | Preparar proyector o pantalla | Audio/DJ | Interna de audio. |
+| Presentacion | `presentation` | Verdadero | Presentacion del festejado | Sin grupo | Publica. |
+| Presentacion | `characterShow` | Verdadero | Preparar aparicion de personaje; Aparicion de personaje | Animacion personaje | Interna y publica. |
+| Presentacion | `photoSession` | Verdadero | Sesion de fotos | Sin grupo | Publica. |
+| Presentacion | `surpriseGift` | Verdadero | Preparar sorpresa especial | Sin grupo | Publica. |
+| Pinata | `pinata` | Verdadero | Preparar area de pinata; Pinata | Pinata | Interna y publica. |
+| Pinata | `pinataCellophaneBags` | Verdadero | Preparar bolsitas de celofan | Pinata | Interna. |
+| Mesas | `reservedTables` | Verdadero | Colocar letreros de reservados | Montaje | Interna. |
+| Mesas | `kidsTables` | Verdadero | Montar mesitas infantiles | Montaje | Interna. |
+| Menu salon | `salonMenu` | Verdadero | Coordinar menu contratado con salon | Cocina/menu | Interna de cocina. |
+| Menu salon | `allergies` | Respondido | Alertar restricciones alimentarias | Cocina/menu | Interna critica. |
+| Menu externo | `externalMenu` | Verdadero | Coordinar proveedor o menu externo | Sin grupo | Interna. |
+| Cafe/dulces | `coffeeServiceTiming` | Respondido | Coordinar servicio de cafe | Cocina/menu | Interna. |
+| Cafe/dulces | `centerpieces` | Verdadero | Colocar centros de mesa | Montaje | Interna. |
+| Cafe/dulces | `candyTable` | Verdadero | Preparar mesa de dulces; Mesa de dulces | Dulces | Interna y publica. |
+| Cafe/dulces | `gelatin` | Verdadero | Coordinar servicio de gelatina | Cocina/menu | Interna. |
+| Servicios | `nannyService` | Verdadero | Coordinar servicio de nanny | Sin grupo | Interna. |
+| Servicios | `valetCarCount` | Mayor que 0 | Coordinar valet o estacionamiento | Sin grupo | Interna. |
+| Servicios | `extraWaiters` | Verdadero | Coordinar meseros adicionales | Sin grupo | Interna. |
+| Decoracion | `externalDecoration` | Verdadero | Recibir proveedor de decoracion | Decoracion | Interna. |
+| Decoracion | `clientDecoration` | Verdadero | Coordinar decoracion del cliente | Decoracion | Interna. |
+| Decoracion | `staffDecorationSupport` | Verdadero | Apoyar decoracion del cliente | Decoracion | Interna. |
+| Varios | `photoCanvas` | Verdadero | Colocar lona decorativa | Montaje | Interna. |
+| Varios | `giantPhotoFrame` | Verdadero | Colocar marco gigante de fotos | Montaje | Interna. |
+| Varios | `candyBags` | Verdadero | Coordinar bolsitas de dulces | Dulces | Interna. |
+| Varios | `souvenirs` | Verdadero | Coordinar recuerditos | Dulces | Interna. |
+| Dinamicas | `danceGames` | Verdadero | Preparar dinamicas seleccionadas | Sin grupo | Publica. |
+| Dinamicas | `chocolateMedals` | Verdadero | Preparar medallas de chocolate | Sin grupo | Interna. |
+| Seguridad | `trampolineSocksOption` | Respondido | Confirmar calcetas y seguridad | Sin grupo | Interna. |
+| Programa | `foodStartTime` | Respondido | Inicio de comida | Programa cocina | Usa la hora capturada. |
+| Programa | `showTime` | Respondido | Show contratado | Sin grupo | Usa la hora capturada. |
+| Programa | `chocolateFountainTime` | Respondido | Fuente de chocolate | Programa cocina | Usa la hora capturada. |
+| Programa | `popsiclesTime` | Respondido | Paletas | Programa cocina | Usa la hora capturada. |
+| Programa | `iceCreamTime` | Respondido | Helados | Programa cocina | Usa la hora capturada. |
+| Programa | `tamalesTime` | Respondido | Tamales | Programa cocina | Usa la hora capturada. |
+| Programa | `celebratoryDanceTime` | Respondido | Baile del festejado | Sin grupo | Usa la hora capturada. |
+| Programa | `otherActivityTime` | Respondido | Otra actividad programada | Sin grupo | Sin hora automatica porque el campo es texto. |
 
 ## Campos informativos sin regla inicial
 
@@ -134,4 +142,5 @@ Clasificacion de esa lista historica:
 - Para cambiar que respuesta genera que tareas, entrar a reglas del cuestionario y editar la regla.
 - Para pausar una regla sin borrarla, desactivarla.
 - Para cambiar responsable concreto, asignar staff en la tarea maestra o en la relacion regla-tarea.
+- Para crear, desactivar u ordenar grupos de asignacion, usar el catalogo de grupos de tareas.
 - Para evitar ruido, mantener sin regla las preguntas que solo dan contexto.

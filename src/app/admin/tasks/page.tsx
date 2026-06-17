@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Eye, EyeOff, Loader2, Pencil, Plus, RotateCcw, Save, Search, Trash2, X } from "lucide-react";
+import { Eye, EyeOff, Filter, Loader2, Pencil, Plus, RotateCcw, Save, Search, Trash2, X } from "lucide-react";
 
 import { AdminToast } from "@/components/admin/AdminToast";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
@@ -17,6 +17,10 @@ type MasterTask = {
   default_staff_id: string | null;
   default_staff_ids?: string[];
   required_responsible_count: number;
+  assignment_group_id: string | null;
+  assignment_group_key: string | null;
+  assignment_group_label: string | null;
+  task_groups?: TaskGroup | null;
   master_task_default_staff?: Array<{
     staff_id: string;
     sort_order: number | null;
@@ -32,6 +36,15 @@ type StaffMember = {
   is_active: boolean;
 };
 
+type TaskGroup = {
+  id: string;
+  name: string;
+  key: string;
+  description?: string | null;
+  is_active: boolean;
+  sort_order?: number | null;
+};
+
 type TaskForm = {
   name: string;
   base_description: string;
@@ -40,6 +53,7 @@ type TaskForm = {
   default_role: string;
   default_staff_ids: string[];
   required_responsible_count: string;
+  assignment_group_id: string;
 };
 
 const emptyForm: TaskForm = {
@@ -50,6 +64,7 @@ const emptyForm: TaskForm = {
   default_role: "",
   default_staff_ids: [],
   required_responsible_count: "1",
+  assignment_group_id: "",
 };
 
 function getSelectValues(select: HTMLSelectElement) {
@@ -77,9 +92,14 @@ function getTaskResponsibleLabel(task: MasterTask, staffById: Map<string, StaffM
   return names.length ? names.join(", ") : "Sin responsable";
 }
 
+function getTaskGroupLabel(task: MasterTask) {
+  return task.task_groups?.name ?? task.assignment_group_label ?? "Sin grupo";
+}
+
 export default function TasksPage() {
   const [tasks, setTasks] = useState<MasterTask[]>([]);
   const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [taskGroups, setTaskGroups] = useState<TaskGroup[]>([]);
   const [form, setForm] = useState<TaskForm>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -89,6 +109,7 @@ export default function TasksPage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [groupFilter, setGroupFilter] = useState("all");
   const formRef = useRef<HTMLFormElement>(null);
 
   const internalCount = useMemo(
@@ -98,6 +119,31 @@ export default function TasksPage() {
   const publicCount = tasks.length - internalCount;
   const staffById = useMemo(() => new Map(staff.map((member) => [member.id, member])), [staff]);
   const hasSearch = normalizeSearchText(searchQuery).length > 0;
+  const hasGroupFilter = groupFilter !== "all";
+  const sortedTaskGroups = useMemo(
+    () =>
+      [...taskGroups].sort((a, b) => {
+        if (a.is_active !== b.is_active) {
+          return a.is_active ? -1 : 1;
+        }
+
+        const orderComparison = (a.sort_order ?? 0) - (b.sort_order ?? 0);
+
+        return orderComparison || a.name.localeCompare(b.name);
+      }),
+    [taskGroups],
+  );
+  const formTaskGroups = useMemo(() => {
+    const activeGroups = sortedTaskGroups.filter((group) => group.is_active);
+
+    if (!editingId || !form.assignment_group_id) {
+      return activeGroups;
+    }
+
+    const currentGroup = sortedTaskGroups.find((group) => group.id === form.assignment_group_id);
+
+    return currentGroup && !currentGroup.is_active ? [currentGroup, ...activeGroups] : activeGroups;
+  }, [editingId, form.assignment_group_id, sortedTaskGroups]);
   const sortedStaff = useMemo(
     () =>
       [...staff].sort((a, b) => {
@@ -111,16 +157,23 @@ export default function TasksPage() {
   );
   const visibleTasks = useMemo(
     () =>
-      tasks.filter((task) =>
-        matchesSearch(searchQuery, [
+      tasks.filter((task) => {
+        const matchesGroup =
+          groupFilter === "all" ||
+          (groupFilter === "none" && !task.assignment_group_id) ||
+          task.assignment_group_id === groupFilter;
+
+        return matchesGroup && matchesSearch(searchQuery, [
           task.name,
           task.base_description,
           task.visibility === "publica" ? "Publica" : "Interna",
           getTaskResponsibleLabel(task, staffById),
           String(task.required_responsible_count ?? 1),
-        ]),
-      ),
-    [searchQuery, staffById, tasks],
+          getTaskGroupLabel(task),
+          task.assignment_group_key,
+        ]);
+      }),
+    [groupFilter, searchQuery, staffById, tasks],
   );
 
   const adminFetch = useCallback(async (path: string, init?: RequestInit) => {
@@ -154,6 +207,7 @@ export default function TasksPage() {
       const payload = await fetchTasks();
       setTasks(payload.tasks ?? []);
       setStaff(payload.staff ?? []);
+      setTaskGroups(payload.taskGroups ?? []);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "No se pudieron cargar las tareas.");
     } finally {
@@ -171,6 +225,7 @@ export default function TasksPage() {
         if (!ignore) {
           setTasks(nextTasks.tasks ?? []);
           setStaff(nextTasks.staff ?? []);
+          setTaskGroups(nextTasks.taskGroups ?? []);
         }
       } catch (loadError) {
         if (!ignore) {
@@ -202,6 +257,7 @@ export default function TasksPage() {
       default_role: task.default_role ?? "",
       default_staff_ids: getTaskResponsibleIds(task),
       required_responsible_count: String(task.required_responsible_count ?? 1),
+      assignment_group_id: task.assignment_group_id ?? "",
     });
     window.requestAnimationFrame(() => {
       formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -350,6 +406,24 @@ export default function TasksPage() {
               </Field>
             </div>
 
+            <Field label="Grupo de asignacion">
+              <select
+                value={form.assignment_group_id}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, assignment_group_id: event.target.value }))
+                }
+                className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-green-300"
+              >
+                <option className="bg-white text-zinc-950" value="">Sin grupo</option>
+                {formTaskGroups.map((group) => (
+                  <option className="bg-white text-zinc-950" key={group.id} value={group.id}>
+                    {group.name}
+                    {group.is_active ? "" : " (inactivo)"}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
             <div className="flex gap-2 sm:justify-end">
               <button
                 type="submit"
@@ -404,19 +478,44 @@ export default function TasksPage() {
               ) : null}
             </div>
           </label>
-          <div className="flex items-center gap-3">
-            <p className="text-sm text-gray-400">
-              {visibleTasks.length} de {tasks.length} tareas
-            </p>
-            <button
-              type="button"
-              onClick={() => setSearchQuery("")}
-              disabled={!hasSearch}
-              className="grid h-11 w-11 place-items-center rounded-md border border-white/10 text-gray-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
-              title="Limpiar busqueda"
-            >
-              <RotateCcw className="h-4 w-4" />
-            </button>
+          <div className="grid gap-3 lg:min-w-[460px] lg:grid-cols-[1fr_auto]">
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium text-gray-300">Filtrar grupo</span>
+              <div className="flex h-11 items-center gap-2 rounded-md border border-white/10 bg-zinc-950 px-3 focus-within:border-green-300">
+                <Filter className="h-4 w-4 text-gray-500" />
+                <select
+                  value={groupFilter}
+                  onChange={(event) => setGroupFilter(event.target.value)}
+                  className="h-full min-w-0 flex-1 bg-transparent text-sm text-white outline-none"
+                >
+                  <option className="bg-white text-zinc-950" value="all">Todos</option>
+                  <option className="bg-white text-zinc-950" value="none">Sin grupo</option>
+                  {sortedTaskGroups.map((group) => (
+                    <option className="bg-white text-zinc-950" key={group.id} value={group.id}>
+                      {group.name}
+                      {group.is_active ? "" : " (inactivo)"}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </label>
+            <div className="flex items-end gap-3">
+              <p className="pb-3 text-sm text-gray-400">
+                {visibleTasks.length} de {tasks.length} tareas
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery("");
+                  setGroupFilter("all");
+                }}
+                disabled={!hasSearch && !hasGroupFilter}
+                className="grid h-11 w-11 place-items-center rounded-md border border-white/10 text-gray-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                title="Limpiar filtros"
+              >
+                <RotateCcw className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
         {loading ? (
@@ -427,7 +526,7 @@ export default function TasksPage() {
           <div className="p-8 text-center text-gray-500">Aun no hay tareas maestras.</div>
         ) : visibleTasks.length === 0 ? (
           <div className="p-8 text-center text-gray-500">
-            No hay tareas maestras que coincidan con la busqueda.
+            No hay tareas maestras que coincidan con los filtros.
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -437,6 +536,7 @@ export default function TasksPage() {
                   <th className="px-5 py-4">Tarea</th>
                   <th className="px-5 py-4">Responsables</th>
                   <th className="px-5 py-4">Cantidad</th>
+                  <th className="px-5 py-4">Grupo</th>
                   <th className="px-5 py-4">Visibilidad</th>
                   <th className="px-5 py-4 text-right">Acciones</th>
                 </tr>
@@ -455,6 +555,9 @@ export default function TasksPage() {
                     </td>
                     <td className="px-5 py-4 text-gray-300">
                       {task.required_responsible_count ?? 1}
+                    </td>
+                    <td className="px-5 py-4 text-gray-300">
+                      {getTaskGroupLabel(task)}
                     </td>
                     <td className="px-5 py-4">
                       <span className={`inline-flex items-center gap-2 rounded-md px-2 py-1 text-xs font-semibold ${task.visibility === "publica" ? "bg-cyan-400/10 text-cyan-200" : "bg-purple-400/10 text-purple-200"}`}>

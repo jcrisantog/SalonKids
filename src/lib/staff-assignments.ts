@@ -58,6 +58,62 @@ export function normalizeRequiredResponsibleCount(value: unknown) {
   return parsed;
 }
 
+export function normalizeAssignmentGroup(value: unknown) {
+  if (typeof value !== "string") {
+    return { key: null, label: null };
+  }
+
+  const label = value.trim().replace(/\s+/g, " ");
+
+  if (!label) {
+    return { key: null, label: null };
+  }
+
+  const key = label
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return key ? { key, label } : { key: null, label: null };
+}
+
+export function normalizeNullableId(value: unknown) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const id = value.trim();
+
+  return id || null;
+}
+
+export async function getTaskGroupById(value: unknown) {
+  const id = normalizeNullableId(value);
+
+  if (!id) {
+    return null;
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("task_groups")
+    .select("id, key, name, is_active")
+    .eq("id", id)
+    .single();
+
+  if (error || !data) {
+    return { error: "Selecciona un grupo valido del catalogo." };
+  }
+
+  return {
+    id: data.id as string,
+    key: data.key as string,
+    label: data.name as string,
+    isActive: Boolean(data.is_active),
+  };
+}
+
 export async function validateStaffIds(staffIds: string[]) {
   if (staffIds.length === 0) {
     return null;

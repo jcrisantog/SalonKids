@@ -48,8 +48,26 @@ CREATE TABLE IF NOT EXISTS public.questionnaire_data (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   event_id UUID REFERENCES public.events(id) ON DELETE CASCADE UNIQUE,
   data JSONB NOT NULL DEFAULT '{}'::jsonb,
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  completed_at TIMESTAMPTZ
+);
+
+ALTER TABLE public.questionnaire_data
+  ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
+
+-- 6. Catalogo de Grupos de Tareas
+CREATE TABLE IF NOT EXISTS public.task_groups (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  name TEXT NOT NULL,
+  key TEXT NOT NULL,
+  description TEXT,
+  is_active BOOLEAN DEFAULT TRUE,
+  sort_order INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS task_groups_key_unique ON public.task_groups(key);
 
 -- 6. Tareas Maestras (Plantillas)
 CREATE TABLE IF NOT EXISTS public.master_tasks (
@@ -61,14 +79,38 @@ CREATE TABLE IF NOT EXISTS public.master_tasks (
   default_role TEXT, -- Rol de staff por defecto
   default_staff_id UUID REFERENCES public.staff(id) ON DELETE SET NULL,
   required_responsible_count INTEGER DEFAULT 1 CHECK (required_responsible_count > 0),
+  assignment_group_id UUID REFERENCES public.task_groups(id) ON DELETE SET NULL,
+  assignment_group_key TEXT,
+  assignment_group_label TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 ALTER TABLE public.master_tasks
   ADD COLUMN IF NOT EXISTS default_staff_id UUID REFERENCES public.staff(id) ON DELETE SET NULL,
-  ADD COLUMN IF NOT EXISTS required_responsible_count INTEGER DEFAULT 1 CHECK (required_responsible_count > 0);
+  ADD COLUMN IF NOT EXISTS required_responsible_count INTEGER DEFAULT 1 CHECK (required_responsible_count > 0),
+  ADD COLUMN IF NOT EXISTS assignment_group_id UUID REFERENCES public.task_groups(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS assignment_group_key TEXT,
+  ADD COLUMN IF NOT EXISTS assignment_group_label TEXT;
 
 CREATE UNIQUE INDEX IF NOT EXISTS master_tasks_name_unique ON public.master_tasks(name);
+
+INSERT INTO public.task_groups (key, name)
+SELECT DISTINCT
+  assignment_group_key,
+  COALESCE(NULLIF(assignment_group_label, ''), assignment_group_key)
+FROM public.master_tasks
+WHERE assignment_group_key IS NOT NULL
+  AND assignment_group_key <> ''
+ON CONFLICT (key) DO UPDATE SET
+  name = COALESCE(NULLIF(public.task_groups.name, ''), EXCLUDED.name),
+  updated_at = NOW();
+
+UPDATE public.master_tasks
+SET assignment_group_id = public.task_groups.id,
+    assignment_group_label = COALESCE(public.master_tasks.assignment_group_label, public.task_groups.name)
+FROM public.task_groups
+WHERE public.master_tasks.assignment_group_id IS NULL
+  AND public.master_tasks.assignment_group_key = public.task_groups.key;
 
 CREATE TABLE IF NOT EXISTS public.master_task_default_staff (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -219,6 +261,7 @@ ALTER TABLE public.staff ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.clients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.questionnaire_data ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.task_groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.master_tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.master_task_default_staff ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.event_tasks ENABLE ROW LEVEL SECURITY;
