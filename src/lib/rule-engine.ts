@@ -1,7 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
-  getAssignedStaffIds,
   replaceStaffRelations,
   type StaffAssignmentMember,
 } from "@/lib/staff-assignments";
@@ -203,6 +202,7 @@ export type QuestionnaireData = {
   iceCreamTime?: string;
   tamalesTime?: string;
   celebratoryDanceTime?: string;
+  otherActivityName?: string;
   otherActivityTime?: string;
   citeGuestsEarly?: boolean;
   shareAdditionalServices?: boolean;
@@ -266,6 +266,7 @@ export type ConfigurableRuleTask = {
   id: string;
   override_description: string | null;
   override_scheduled_time: string | null;
+  schedule_source_field_key: string | null;
   override_role_responsible: string | null;
   override_staff_id: string | null;
   questionnaire_task_rule_task_staff?: StaffAssignmentMember[] | null;
@@ -935,13 +936,22 @@ export const questionnaireRules: TaskRule[] = [
           createTask(eventId, name, description, normalizeTime(time as string), "Coordinadora", "publica"),
         );
 
-      if (cleanText(data.otherActivityTime)) {
+      const otherActivityName =
+        cleanText(data.otherActivityName) ||
+        (cleanText(data.otherActivityTime)?.match(/^\d{2}:\d{2}(:\d{2})?$/)
+          ? ""
+          : cleanText(data.otherActivityTime));
+      const otherActivityTime = cleanText(data.otherActivityTime);
+
+      if (otherActivityName) {
         tasks.push(
           createTask(
             eventId,
             "Otra actividad programada",
-            `Actividad adicional indicada por cliente: ${data.otherActivityTime}.`,
-            "17:00",
+            `Actividad adicional indicada por cliente: ${otherActivityName}.`,
+            otherActivityTime && /^\d{2}:\d{2}(:\d{2})?$/.test(otherActivityTime)
+              ? normalizeTime(otherActivityTime)
+              : "17:00",
             "Coordinadora",
             "publica",
           ),
@@ -1038,8 +1048,12 @@ async function persistEventTaskStaff(taskId: string, task: GeneratedEventTask) {
   }
 }
 
-function getRuleAnswerTime(rule: Pick<ConfigurableQuestionnaireRule, "field_key">, data: QuestionnaireData) {
-  const value = data[rule.field_key];
+function getQuestionnaireAnswerTime(fieldKey: string | null | undefined, data: QuestionnaireData) {
+  if (!fieldKey) {
+    return null;
+  }
+
+  const value = data[fieldKey];
 
   if (typeof value !== "string" || !/^\d{2}:\d{2}(:\d{2})?$/.test(value.trim())) {
     return null;
@@ -1048,11 +1062,26 @@ function getRuleAnswerTime(rule: Pick<ConfigurableQuestionnaireRule, "field_key"
   return normalizeRuleTime(value.trim());
 }
 
+function getOtherActivityName(data: QuestionnaireData) {
+  const explicitName = cleanText(data.otherActivityName);
+  const legacyValue = cleanText(data.otherActivityTime);
+
+  if (explicitName) {
+    return explicitName;
+  }
+
+  if (legacyValue && !/^\d{2}:\d{2}(:\d{2})?$/.test(legacyValue)) {
+    return legacyValue;
+  }
+
+  return null;
+}
+
 export async function loadActiveQuestionnaireRules(supabase: SupabaseClient) {
   const { data, error } = await supabase
     .from("questionnaire_task_rules")
     .select(
-      "id, field_key, field_label, section_id, section_title, operator, expected_value, is_active, questionnaire_task_rule_tasks(id, override_description, override_scheduled_time, override_role_responsible, override_staff_id, override_visibility, sort_order, questionnaire_task_rule_task_staff(staff_id, sort_order), master_tasks(id, name, base_description, visibility, area, default_role, default_staff_id, required_responsible_count, assignment_group_id, assignment_group_key, assignment_group_label, master_task_default_staff(staff_id, sort_order)))",
+      "id, field_key, field_label, section_id, section_title, operator, expected_value, is_active, questionnaire_task_rule_tasks(id, override_description, override_scheduled_time, schedule_source_field_key, override_role_responsible, override_staff_id, override_visibility, sort_order, questionnaire_task_rule_task_staff(staff_id, sort_order), master_tasks(id, name, base_description, visibility, area, default_role, default_staff_id, required_responsible_count, assignment_group_id, assignment_group_key, assignment_group_label, master_task_default_staff(staff_id, sort_order)))",
     )
     .eq("is_active", true)
     .order("section_id", { ascending: true });
@@ -1087,26 +1116,28 @@ export async function buildConfigurableReactiveTasks(
           return null;
         }
 
-        const overrideStaffIds = getAssignedStaffIds(ruleTask.questionnaire_task_rule_task_staff);
-        const defaultStaffIds = getAssignedStaffIds(masterTask.master_task_default_staff);
-        const staffIds = overrideStaffIds.length
-          ? overrideStaffIds
-          : defaultStaffIds.length
-            ? defaultStaffIds
-            : ([ruleTask.override_staff_id || masterTask.default_staff_id].filter(Boolean) as string[]);
+        const baseDescription =
+          ruleTask.override_description ||
+          masterTask.base_description ||
+          `Ejecutar tarea generada por la respuesta "${rule.field_label}".`;
+        const otherActivityName = rule.field_key === "otherActivityName"
+          ? getOtherActivityName(data)
+          : null;
 
         return {
           event_id: eventId,
           task_name: masterTask.name,
-          description:
-            ruleTask.override_description ||
-            masterTask.base_description ||
-            `Ejecutar tarea generada por la respuesta "${rule.field_label}".`,
-          scheduled_time: normalizeRuleTime(ruleTask.override_scheduled_time) ?? getRuleAnswerTime(rule, data),
+          description: otherActivityName
+            ? `${baseDescription} Actividad: ${otherActivityName}.`
+            : baseDescription,
+          scheduled_time:
+            normalizeRuleTime(ruleTask.override_scheduled_time) ??
+            getQuestionnaireAnswerTime(ruleTask.schedule_source_field_key, data) ??
+            getQuestionnaireAnswerTime(rule.field_key, data),
           role_responsible:
             ruleTask.override_role_responsible || masterTask.default_role || "Coordinadora",
-          staff_id: staffIds[0] ?? null,
-          staff_ids: staffIds,
+          staff_id: null,
+          staff_ids: [],
           visibility: ruleTask.override_visibility || masterTask.visibility,
           status: "pendiente",
           is_manual_override: false,
@@ -1168,9 +1199,7 @@ export async function syncReactiveTasks(
 
   for (const [sourceId, sourceTasks] of existingBySource) {
     if (!generatedSourceIds.has(sourceId)) {
-      sourceTasks
-        .filter((task) => !task.is_manual_override)
-        .forEach((task) => idsToDelete.add(task.id));
+      sourceTasks.forEach((task) => idsToDelete.add(task.id));
     }
   }
 
@@ -1302,8 +1331,6 @@ function buildBaseTaskFromTemplate(
     isClosing ? normalizeTime(schedule.end_time) : normalizeTime(schedule.start_time),
     template.default_role || "Coordinadora",
     template.visibility,
-    template.default_staff_id,
-    getAssignedStaffIds(template.master_task_default_staff),
     ),
     source_master_task_id: template.id ?? null,
   };

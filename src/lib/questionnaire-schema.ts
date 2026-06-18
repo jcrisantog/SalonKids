@@ -227,6 +227,7 @@ export const emptyQuestionnaire: QuestionnaireData = {
   iceCreamTime: "",
   tamalesTime: "",
   celebratoryDanceTime: "",
+  otherActivityName: "",
   otherActivityTime: "",
   citeGuestsEarly: false,
   shareAdditionalServices: false,
@@ -513,7 +514,8 @@ export const questionnaireSections: QuestionnaireSection[] = [
       { key: "iceCreamTime", label: "Helados", type: "time" },
       { key: "tamalesTime", label: "Tamales", type: "time" },
       { key: "celebratoryDanceTime", label: "Baile del festejado(a)", type: "time" },
-      { key: "otherActivityTime", label: "Otra actividad", type: "text" },
+      { key: "otherActivityName", label: "Otra actividad", type: "text" },
+      { key: "otherActivityTime", label: "Horario de otra actividad", type: "time" },
       { key: "citeGuestsEarly", label: "Citar invitados media hora antes", type: "boolean" },
       { key: "shareAdditionalServices", label: "Compartir servicios adicionales", type: "boolean" },
     ],
@@ -531,10 +533,22 @@ export const questionnaireSections: QuestionnaireSection[] = [
 ];
 
 export function normalizeQuestionnaire(input?: Partial<QuestionnaireData> | null): QuestionnaireData {
-  return {
+  const questionnaire = {
     ...emptyQuestionnaire,
     ...(input ?? {}),
   };
+  const legacyOtherActivity = typeof input?.otherActivityTime === "string"
+    && input.otherActivityTime
+    && !/^\d{2}:\d{2}(:\d{2})?$/.test(input.otherActivityTime.trim())
+    ? input.otherActivityTime.trim()
+    : "";
+
+  if (legacyOtherActivity && !questionnaire.otherActivityName) {
+    questionnaire.otherActivityName = legacyOtherActivity;
+    questionnaire.otherActivityTime = "";
+  }
+
+  return questionnaire;
 }
 
 export function isFieldVisible(field: QuestionnaireField, data: QuestionnaireData) {

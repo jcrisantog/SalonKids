@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS public.master_tasks (
   visibility TEXT DEFAULT 'interna' CHECK (visibility IN ('interna', 'publica')),
   area TEXT, -- Comensales, Cocina, etc.
   default_role TEXT, -- Rol de staff por defecto
-  default_staff_id UUID REFERENCES public.staff(id) ON DELETE SET NULL,
+  default_staff_id UUID REFERENCES public.staff(id) ON DELETE SET NULL, -- Compatibilidad: personal seleccionable principal
   required_responsible_count INTEGER DEFAULT 1 CHECK (required_responsible_count > 0),
   assignment_group_id UUID REFERENCES public.task_groups(id) ON DELETE SET NULL,
   assignment_group_key TEXT,
@@ -210,8 +210,9 @@ CREATE TABLE IF NOT EXISTS public.questionnaire_task_rule_tasks (
   master_task_id UUID REFERENCES public.master_tasks(id) ON DELETE CASCADE NOT NULL,
   override_description TEXT,
   override_scheduled_time TIME,
+  schedule_source_field_key TEXT,
   override_role_responsible TEXT,
-  override_staff_id UUID REFERENCES public.staff(id) ON DELETE SET NULL,
+  override_staff_id UUID REFERENCES public.staff(id) ON DELETE SET NULL, -- Compatibilidad: personal seleccionable principal de la regla
   override_visibility TEXT CHECK (override_visibility IN ('interna', 'publica')),
   sort_order INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW()
@@ -219,6 +220,9 @@ CREATE TABLE IF NOT EXISTS public.questionnaire_task_rule_tasks (
 
 ALTER TABLE public.questionnaire_task_rule_tasks
   ADD COLUMN IF NOT EXISTS override_staff_id UUID REFERENCES public.staff(id) ON DELETE SET NULL;
+
+ALTER TABLE public.questionnaire_task_rule_tasks
+  ADD COLUMN IF NOT EXISTS schedule_source_field_key TEXT;
 
 CREATE UNIQUE INDEX IF NOT EXISTS questionnaire_task_rule_tasks_unique
   ON public.questionnaire_task_rule_tasks(rule_id, master_task_id);

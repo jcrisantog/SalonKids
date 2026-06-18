@@ -5,6 +5,7 @@ import {
   Calendar,
   CheckSquare,
   FileText,
+  History,
   LayoutDashboard,
   LogOut,
   PlugZap,
@@ -54,6 +55,8 @@ export default function AdminLayout({
             Catalogos
           </div>
           <NavLink href="/admin/staff" icon={<Users size={20} />} label="Personal / Staff" />
+          <NavLink href="/admin/staff-task-history" icon={<History size={20} />} label="Historial Staff" />
+          <NavLink href="/admin/task-history" icon={<CheckSquare size={20} />} label="Historial Tareas" />
           <NavLink href="/admin/tasks" icon={<CheckSquare size={20} />} label="Tareas Maestras" />
           <NavLink href="/admin/task-groups" icon={<Tags size={20} />} label="Grupos de Tareas" />
           <NavLink href="/admin/questionnaire-rules" icon={<SlidersHorizontal size={20} />} label="Reglas Cuestionario" />

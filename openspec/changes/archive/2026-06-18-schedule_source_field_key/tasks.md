@@ -1,0 +1,6 @@
+- [x] 1. Actualizar OpenSpec para reglas con fuente de horario y otra actividad separada
+- [x] 2. Agregar columna `schedule_source_field_key` al esquema y seed
+- [x] 3. Actualizar motor configurable para resolver horario desde la fuente configurada
+- [x] 4. Actualizar APIs y pantalla admin de reglas para editar la fuente de horario
+- [x] 5. Separar "Otra actividad" en nombre y hora en el cuestionario y fallback
+- [x] 6. Verificar con lint/build

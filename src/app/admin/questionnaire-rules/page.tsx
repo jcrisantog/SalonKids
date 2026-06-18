@@ -71,6 +71,7 @@ type RuleTask = {
   master_task_id: string;
   override_description: string;
   override_scheduled_time: string;
+  schedule_source_field_key: string;
   override_role_responsible: string;
   override_staff_id: string;
   override_staff_ids: string[];
@@ -129,6 +130,7 @@ const emptyTask: RuleTask = {
   master_task_id: "",
   override_description: "",
   override_scheduled_time: "",
+  schedule_source_field_key: "",
   override_role_responsible: "",
   override_staff_id: "",
   override_staff_ids: [],
@@ -170,7 +172,7 @@ function getRelationStaffIds(
 }
 
 function getStaffNames(ids: string[], staffById: Map<string, StaffMember>) {
-  return ids.map((id) => staffById.get(id)?.name ?? "Responsable no encontrado").join(", ");
+  return ids.map((id) => staffById.get(id)?.name ?? "Personal no encontrado").join(", ");
 }
 
 function sortMasterTasks(tasks: MasterTask[]) {
@@ -322,6 +324,7 @@ export default function QuestionnaireRulesPage() {
     [taskGroups],
   );
   const staffById = useMemo(() => new Map(staff.map((member) => [member.id, member])), [staff]);
+  const timeFields = useMemo(() => fields.filter((field) => field.type === "time"), [fields]);
 
   function resetForm() {
     setEditingId(null);
@@ -364,6 +367,7 @@ export default function QuestionnaireRulesPage() {
           master_task_id: task.master_task_id,
           override_description: task.override_description ?? "",
           override_scheduled_time: task.override_scheduled_time?.slice(0, 5) ?? "",
+          schedule_source_field_key: task.schedule_source_field_key ?? "",
           override_role_responsible: task.override_role_responsible ?? "",
           override_staff_id: task.override_staff_id ?? "",
           override_staff_ids: getRelationStaffIds(
@@ -641,7 +645,7 @@ export default function QuestionnaireRulesPage() {
           </div>
 
           {form.tasks.map((task, index) => (
-            <div key={index} className="grid gap-3 rounded-md border border-white/10 bg-zinc-950/60 p-4 lg:grid-cols-[1fr_120px_190px_150px_44px]">
+            <div key={index} className="grid gap-3 rounded-md border border-white/10 bg-zinc-950/60 p-4 lg:grid-cols-[1fr_120px_190px_190px_150px_44px]">
               <Field label="Tarea maestra">
                 <select
                   value={task.master_task_id}
@@ -682,7 +686,24 @@ export default function QuestionnaireRulesPage() {
                   className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-purple-300"
                 />
               </Field>
-              <Field label="Staff asignado">
+              <Field label="Hora desde">
+                <select
+                  value={task.schedule_source_field_key}
+                  onChange={(event) => updateTask(index, { schedule_source_field_key: event.target.value })}
+                  className="h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-white outline-none focus:border-purple-300"
+                >
+                  <option value="">Campo disparador</option>
+                  {timeFields.map((field) => (
+                    <option key={field.key} value={field.key}>
+                      {field.sectionTitle} - {field.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-2 text-xs leading-5 text-gray-500">
+                  Se usa si la hora fija esta vacia.
+                </p>
+              </Field>
+              <Field label="Personal seleccionable">
                 <select
                   multiple
                   size={Math.min(Math.max(sortedStaff.length, 3), 5)}
@@ -699,6 +720,9 @@ export default function QuestionnaireRulesPage() {
                     </option>
                   ))}
                 </select>
+                <p className="mt-2 text-xs leading-5 text-gray-500">
+                  Si queda vacio, hereda la lista de la tarea maestra; si tampoco existe, participa todo el staff activo.
+                </p>
               </Field>
               <Field label="Visibilidad">
                 <select
@@ -721,7 +745,7 @@ export default function QuestionnaireRulesPage() {
               >
                 <X className="h-4 w-4" />
               </button>
-              <label className="lg:col-span-5">
+              <label className="lg:col-span-6">
                 <span className="mb-2 block text-sm font-medium text-gray-300">Descripcion override</span>
                 <textarea
                   value={task.override_description}
@@ -1032,7 +1056,7 @@ function TaskCreationModal({
               <option value="publica">Publica</option>
             </select>
           </Field>
-          <Field label="Staff predeterminado">
+          <Field label="Personal seleccionable">
             <select
               multiple
               size={Math.min(Math.max(staff.length, 3), 5)}
@@ -1047,6 +1071,9 @@ function TaskCreationModal({
                 </option>
               ))}
             </select>
+            <p className="mt-2 text-xs leading-5 text-gray-500">
+              Si queda vacio, la autoasignacion podra usar todo el staff activo.
+            </p>
           </Field>
           <Field label="Cantidad de responsables">
             <input

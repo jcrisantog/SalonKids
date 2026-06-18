@@ -30,8 +30,12 @@ The system SHALL support boolean options, single-choice options, multiple-choice
 - **THEN** the system stores the selected value in the questionnaire payload
 
 #### Scenario: Client answers quantities and times
-- **WHEN** the client enters a quantity or time
+- **WHEN** the client enters a quantity or time, including the time for "Otra actividad"
 - **THEN** the system stores a typed value that can be used by scheduling and task rules
+
+#### Scenario: Client describes another scheduled activity
+- **WHEN** the client fills "Otra actividad"
+- **THEN** the system stores the activity description separately from its scheduled time
 
 ### Requirement: Conditional follow-up fields
 The system SHALL show follow-up questions only when their parent answer makes them relevant, while preserving previously entered hidden values unless the client changes them.
@@ -83,7 +87,7 @@ El sistema SHALL convertir respuestas relevantes del cuestionario en tareas reac
 
 #### Scenario: Program answers create scheduled tasks
 - **WHEN** el cliente proporciona horarios para comida, presentacion, show, mesa de dulces, fuente de chocolate, baile, tamales, helado u otra actividad y existen reglas activas para esas respuestas
-- **THEN** el sistema crea o actualiza tareas programadas para staff sin mostrarlas en el cronograma del cuestionario
+- **THEN** el sistema crea o actualiza tareas programadas para staff usando el horario capturado correspondiente sin mostrarlas en el cronograma del cuestionario
 
 #### Scenario: Informative answer does not create tasks
 - **WHEN** el cliente responde un campo del cuestionario que no tiene regla configurable activa

@@ -48,6 +48,8 @@ export function normalizeStaffIds(value: unknown): string[] {
   return ids;
 }
 
+export const normalizeSelectableStaffIds = normalizeStaffIds;
+
 export function normalizeRequiredResponsibleCount(value: unknown) {
   const parsed = Number(value ?? 1);
 
@@ -122,7 +124,7 @@ export async function validateStaffIds(staffIds: string[]) {
   const { data, error } = await supabaseAdmin.from("staff").select("id").in("id", staffIds);
 
   if (error || (data ?? []).length !== staffIds.length) {
-    return "Selecciona responsables validos del catalogo de personal.";
+    return "Selecciona personal valido del catalogo.";
   }
 
   return null;

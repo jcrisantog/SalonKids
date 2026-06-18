@@ -7,6 +7,12 @@ import {
   replaceStaffRelations,
   type StaffAssignmentMember,
 } from "@/lib/staff-assignments";
+import {
+  loadRotationStatsForEvent,
+  resolveActivityIdentity,
+  type ActivityIdentity,
+  type RotationStats,
+} from "@/lib/staff-task-history";
 import { supabaseAdmin } from "@/lib/supabase-server";
 
 type RouteParams = {
@@ -29,6 +35,7 @@ type EventTaskForAssignment = {
   staff_id: string | null;
   source_rule_task_id: string | null;
   source_master_task_id: string | null;
+  is_manual_override?: boolean | null;
   event_task_staff?: StaffAssignmentMember[] | null;
 };
 
@@ -55,9 +62,10 @@ type TaskAssignmentContext = {
   ruleTask: RuleTaskForAssignment | null;
   masterTask: MasterTaskForAssignment | null;
   existing: string[];
-  defaultIds: string[];
-  legacyDefaultIds: string[];
+  selectableStaffIds: string[];
+  hasSelectableRestriction: boolean;
   requiredCount: number;
+  activity: ActivityIdentity;
 };
 
 type AssignmentUnit = {
@@ -94,7 +102,11 @@ function addAllUnique(target: string[], candidates: string[]) {
 }
 
 function normalizeName(value: string) {
-  return value.trim().toLowerCase();
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
 }
 
 function buildAssignmentUnits(contexts: TaskAssignmentContext[]) {
@@ -119,25 +131,192 @@ function buildAssignmentUnits(contexts: TaskAssignmentContext[]) {
   return [...groupedUnits.values(), ...units];
 }
 
-function getUnitExistingIds(unit: AssignmentUnit, mode: AssignmentMode) {
+function getUnitExistingIds({
+  activityKeys,
+  candidateIds,
+  mode,
+  stats,
+  unit,
+}: {
+  activityKeys: string[];
+  candidateIds: string[];
+  mode: AssignmentMode;
+  stats: RotationStats;
+  unit: AssignmentUnit;
+}) {
   if (mode === "replace") {
     return [];
   }
 
   const existingIds: string[] = [];
-  unit.tasks.forEach((context) => addAllUnique(existingIds, context.existing));
+
+  unit.tasks.forEach((context) => {
+    if (context.task.is_manual_override) {
+      for (const staffId of context.existing) {
+        const currentRepeatCount = getActivityRepeatCount(stats, staffId, activityKeys);
+        const hasBetterCandidate = candidateIds.some(
+          (candidateId) =>
+            candidateId !== staffId &&
+            !context.existing.includes(candidateId) &&
+            getActivityRepeatCount(stats, candidateId, activityKeys) < currentRepeatCount,
+        );
+
+        if (!hasBetterCandidate) {
+          addAllUnique(existingIds, [staffId]);
+        }
+      }
+    }
+  });
 
   return existingIds;
 }
 
-function getUnitDefaultIds(unit: AssignmentUnit) {
-  const defaultIds: string[] = [];
+function intersectIds(first: string[], second: string[]) {
+  const secondSet = new Set(second);
 
-  for (const context of unit.tasks) {
-    addAllUnique(defaultIds, context.defaultIds.length ? context.defaultIds : context.legacyDefaultIds);
+  return first.filter((id) => secondSet.has(id));
+}
+
+function getUnitCandidateIds(unit: AssignmentUnit, activeStaffIds: string[]) {
+  const restrictedLists = unit.tasks
+    .filter((context) => context.hasSelectableRestriction)
+    .map((context) => context.selectableStaffIds);
+
+  if (restrictedLists.length === 0) {
+    return activeStaffIds;
   }
 
-  return defaultIds;
+  const [firstList, ...remainingLists] = restrictedLists;
+  const candidateIds = remainingLists.reduce(intersectIds, firstList);
+  const activeSet = new Set(activeStaffIds);
+
+  return candidateIds.filter((staffId) => activeSet.has(staffId));
+}
+
+function getUnitActivity(unit: AssignmentUnit) {
+  return unit.tasks[0]?.activity;
+}
+
+function getUnitRotationKeys(unit: AssignmentUnit) {
+  const exactKeys = new Set<string>();
+  const fallbackKeys = new Set<string>();
+
+  for (const context of unit.tasks) {
+    for (const key of context.activity.keys) {
+      if (key.startsWith("master:") || key.startsWith("task:")) {
+        exactKeys.add(key);
+      } else {
+        fallbackKeys.add(key);
+      }
+    }
+  }
+
+  return exactKeys.size > 0 ? Array.from(exactKeys) : Array.from(fallbackKeys);
+}
+
+function orderCandidatesByRotation({
+  activityKeys,
+  candidateIds,
+  existingIds,
+  plannedAssignmentsByStaff,
+  stats,
+}: {
+  activityKeys: string[];
+  candidateIds: string[];
+  existingIds: string[];
+  plannedAssignmentsByStaff: Map<string, number>;
+  stats: RotationStats;
+}) {
+  const existingSet = new Set(existingIds);
+
+  return shuffleIds(candidateIds)
+    .filter((staffId) => !existingSet.has(staffId))
+    .sort((a, b) => {
+      const aActivityCount = getActivityRepeatCount(stats, a, activityKeys);
+      const bActivityCount = getActivityRepeatCount(stats, b, activityKeys);
+
+      if (aActivityCount !== bActivityCount) {
+        return aActivityCount - bActivityCount;
+      }
+
+      const aPlannedTotal = plannedAssignmentsByStaff.get(a) ?? 0;
+      const bPlannedTotal = plannedAssignmentsByStaff.get(b) ?? 0;
+
+      if (aPlannedTotal !== bPlannedTotal) {
+        return aPlannedTotal - bPlannedTotal;
+      }
+
+      const aExactTotal = getTotalRepeatCount(stats, a, activityKeys);
+      const bExactTotal = getTotalRepeatCount(stats, b, activityKeys);
+
+      if (aExactTotal !== bExactTotal) {
+        return aExactTotal - bExactTotal;
+      }
+
+      const aTotal = stats.totalAssignmentsByStaff.get(a) ?? 0;
+      const bTotal = stats.totalAssignmentsByStaff.get(b) ?? 0;
+
+      if (aTotal !== bTotal) {
+        return aTotal - bTotal;
+      }
+
+      return 0;
+    });
+}
+
+function getActivityRepeatCount(stats: RotationStats, staffId: string, activityKeys: string[]) {
+  const activityCounts = stats.sameActivityByStaff.get(staffId);
+
+  if (!activityCounts) {
+    return 0;
+  }
+
+  return Math.max(...activityKeys.map((activityKey) => activityCounts.get(activityKey) ?? 0), 0);
+}
+
+function getTotalRepeatCount(stats: RotationStats, staffId: string, activityKeys: string[]) {
+  const activityCounts = stats.sameActivityByStaff.get(staffId);
+
+  if (!activityCounts) {
+    return 0;
+  }
+
+  return activityKeys.reduce((total, activityKey) => total + (activityCounts.get(activityKey) ?? 0), 0);
+}
+
+function hasUnavoidableRepeat({
+  activityKeys,
+  candidateIds,
+  selectedIds,
+  stats,
+}: {
+  activityKeys: string[];
+  candidateIds: string[];
+  selectedIds: string[];
+  stats: RotationStats;
+}) {
+  const selectedRepeats = selectedIds.some(
+    (staffId) => getActivityRepeatCount(stats, staffId, activityKeys) > 0,
+  );
+
+  if (!selectedRepeats) {
+    return false;
+  }
+
+  return candidateIds.length > 0 && candidateIds.every((staffId) => getActivityRepeatCount(stats, staffId, activityKeys) > 0);
+}
+
+function addPlannedAssignments(
+  plannedAssignmentsByStaff: Map<string, number>,
+  staffIds: string[],
+  taskCount: number,
+) {
+  for (const staffId of staffIds) {
+    plannedAssignmentsByStaff.set(
+      staffId,
+      (plannedAssignmentsByStaff.get(staffId) ?? 0) + taskCount,
+    );
+  }
 }
 
 export async function POST(request: Request, context: RouteParams) {
@@ -155,7 +334,7 @@ export async function POST(request: Request, context: RouteParams) {
     supabaseAdmin
       .from("event_tasks")
       .select(
-        "id, task_name, staff_id, source_rule_task_id, source_master_task_id, event_task_staff(staff_id, sort_order)",
+        "id, task_name, staff_id, source_rule_task_id, source_master_task_id, is_manual_override, event_task_staff(staff_id, sort_order)",
       )
       .eq("event_id", id),
     supabaseAdmin.from("staff").select("id").eq("is_active", true).order("name", { ascending: true }),
@@ -165,7 +344,7 @@ export async function POST(request: Request, context: RouteParams) {
     [tasksResult, staffResult] = await Promise.all([
       supabaseAdmin
         .from("event_tasks")
-        .select("id, task_name, staff_id, source_rule_task_id, source_master_task_id")
+        .select("id, task_name, staff_id, source_rule_task_id, source_master_task_id, is_manual_override")
         .eq("event_id", id),
       supabaseAdmin.from("staff").select("id").eq("is_active", true).order("name", { ascending: true }),
     ]);
@@ -202,7 +381,7 @@ export async function POST(request: Request, context: RouteParams) {
   }
 
   if (ruleTasksResult.error) {
-    return NextResponse.json({ error: "No se pudieron cargar defaults de reglas." }, { status: 500 });
+    return NextResponse.json({ error: "No se pudo cargar el personal seleccionable de reglas." }, { status: 500 });
   }
 
   const ruleTasks = (ruleTasksResult.data ?? []) as RuleTaskForAssignment[];
@@ -251,7 +430,7 @@ export async function POST(request: Request, context: RouteParams) {
   }
 
   if (masterTasksResult.error) {
-    return NextResponse.json({ error: "No se pudieron cargar defaults de tareas maestras." }, { status: 500 });
+    return NextResponse.json({ error: "No se pudo cargar el personal seleccionable de tareas maestras." }, { status: 500 });
   }
 
   const masterTasks = (masterTasksResult.data ?? []) as MasterTaskForAssignment[];
@@ -269,37 +448,94 @@ export async function POST(request: Request, context: RouteParams) {
       existing.push(task.staff_id);
     }
 
-    const ruleDefaults = getAssignedStaffIds(ruleTask?.questionnaire_task_rule_task_staff);
-    const masterDefaults = getAssignedStaffIds(masterTask?.master_task_default_staff);
+    const ruleSelectableStaffIds = getAssignedStaffIds(ruleTask?.questionnaire_task_rule_task_staff);
+    const masterSelectableStaffIds = getAssignedStaffIds(masterTask?.master_task_default_staff);
+    const legacyRuleSelectableStaffIds = ruleTask?.override_staff_id ? [ruleTask.override_staff_id] : [];
+    const legacyMasterSelectableStaffIds = masterTask?.default_staff_id ? [masterTask.default_staff_id] : [];
+    const selectableStaffIds =
+      ruleSelectableStaffIds.length || legacyRuleSelectableStaffIds.length
+        ? [...ruleSelectableStaffIds, ...legacyRuleSelectableStaffIds]
+        : [...masterSelectableStaffIds, ...legacyMasterSelectableStaffIds];
 
     return {
       task,
       ruleTask,
       masterTask,
       existing,
-      defaultIds: ruleDefaults.length ? ruleDefaults : masterDefaults,
-      legacyDefaultIds: [ruleTask?.override_staff_id || masterTask?.default_staff_id].filter(Boolean) as string[],
+      selectableStaffIds: Array.from(new Set(selectableStaffIds)),
+      hasSelectableRestriction: selectableStaffIds.length > 0,
       requiredCount: masterTask?.required_responsible_count ?? 1,
+      activity: resolveActivityIdentity({
+        masterTask,
+        sourceMasterTaskId: masterTaskId,
+        taskName: task.task_name,
+      }),
     };
   });
   const assignmentUnits = buildAssignmentUnits(taskContexts);
+  const rotationResult = await loadRotationStatsForEvent(supabaseAdmin, id, 3);
+
+  if (rotationResult.error) {
+    return NextResponse.json({ error: "No se pudo cargar el historial reciente para rotar responsables." }, { status: 500 });
+  }
+
   let updated = 0;
   let incomplete = 0;
   let unchanged = 0;
   let errors = 0;
+  let unavoidableRepeats = 0;
+  let candidateShortages = 0;
+  const plannedAssignmentsByStaff = new Map<string, number>();
 
   for (const unit of assignmentUnits) {
     const requiredCount = Math.max(...unit.tasks.map((context) => context.requiredCount), 1);
-    const nextStaffIds = getUnitExistingIds(unit, mode);
+    const unitRotationKeys = getUnitRotationKeys(unit);
+    const candidateIds = getUnitCandidateIds(unit, activeStaffIds);
+    const nextStaffIds = getUnitExistingIds({
+      activityKeys: unitRotationKeys,
+      candidateIds,
+      mode,
+      stats: rotationResult.stats,
+      unit,
+    });
+    const unitActivity = getUnitActivity(unit);
 
-    addUnique(nextStaffIds, getUnitDefaultIds(unit), requiredCount);
-    addUnique(nextStaffIds, shuffleIds(activeStaffIds), requiredCount);
+    if (candidateIds.length < requiredCount) {
+      candidateShortages += 1;
+    }
+
+    if (unitActivity) {
+      const orderedCandidates = orderCandidatesByRotation({
+        activityKeys: unitRotationKeys,
+        candidateIds,
+        existingIds: nextStaffIds,
+        plannedAssignmentsByStaff,
+        stats: rotationResult.stats,
+      });
+
+      addUnique(nextStaffIds, orderedCandidates, requiredCount);
+
+      if (
+        nextStaffIds.length > 0 &&
+        hasUnavoidableRepeat({
+          activityKeys: unitRotationKeys,
+          candidateIds,
+          selectedIds: nextStaffIds,
+          stats: rotationResult.stats,
+        })
+      ) {
+        unavoidableRepeats += 1;
+      }
+    } else {
+      addUnique(nextStaffIds, shuffleIds(candidateIds), requiredCount);
+    }
 
     if (nextStaffIds.length < requiredCount) {
       incomplete += 1;
     }
 
     const unitUnchanged = unit.tasks.every((context) => sameIds(context.existing, nextStaffIds));
+    addPlannedAssignments(plannedAssignmentsByStaff, nextStaffIds, unit.tasks.length);
 
     if (mode === "complete" && unitUnchanged) {
       unchanged += unit.tasks.length;
@@ -311,7 +547,7 @@ export async function POST(request: Request, context: RouteParams) {
         .from("event_tasks")
         .update({
           staff_id: nextStaffIds[0] ?? null,
-          is_manual_override: true,
+          is_manual_override: false,
         })
         .eq("id", task.id)
         .eq("event_id", id);
@@ -343,5 +579,8 @@ export async function POST(request: Request, context: RouteParams) {
     unchanged,
     errors,
     mode,
+    unavoidableRepeats,
+    candidateShortages,
+    historyEvents: rotationResult.events.length,
   });
 }

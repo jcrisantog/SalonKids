@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { requireAdmin } from "@/lib/admin-api";
 import { getQuestionnaireFieldCatalog } from "@/lib/questionnaire-schema";
-import { normalizeStaffIds, replaceStaffRelations, validateStaffIds } from "@/lib/staff-assignments";
+import { normalizeSelectableStaffIds, replaceStaffRelations, validateStaffIds } from "@/lib/staff-assignments";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import type { QuestionnaireRuleOperator } from "@/lib/rule-engine";
 
@@ -16,6 +16,7 @@ type RuleTaskPayload = {
   master_task_id?: string;
   override_description?: string;
   override_scheduled_time?: string;
+  schedule_source_field_key?: string | null;
   override_role_responsible?: string;
   override_staff_id?: string | null;
   override_staff_ids?: string[];
@@ -45,6 +46,10 @@ function cleanText(value?: string) {
   return value?.trim() || null;
 }
 
+function getFieldMetadata(fieldKey?: string) {
+  return getQuestionnaireFieldCatalog().find((field) => field.key === fieldKey);
+}
+
 function normalizeTime(value?: string) {
   if (!value) {
     return null;
@@ -55,14 +60,14 @@ function normalizeTime(value?: string) {
 
 async function validateRuleStaffIds(tasks: RuleTaskPayload[]) {
   const staffIds = Array.from(
-    new Set(tasks.flatMap((task) => normalizeStaffIds(task.override_staff_ids ?? task.override_staff_id))),
+    new Set(tasks.flatMap((task) => normalizeSelectableStaffIds(task.override_staff_ids ?? task.override_staff_id))),
   );
 
   return validateStaffIds(staffIds);
 }
 
 function validatePayload(payload: RulePayload) {
-  const field = getQuestionnaireFieldCatalog().find((item) => item.key === payload.field_key);
+  const field = getFieldMetadata(payload.field_key);
 
   if (!field) {
     return { error: "Selecciona una pregunta valida.", field: null };
@@ -83,6 +88,16 @@ function validatePayload(payload: RulePayload) {
 
   if (uniqueTaskIds.size !== taskIds.length) {
     return { error: "No puedes asociar la misma tarea maestra mas de una vez en la misma regla.", field: null };
+  }
+
+  const invalidScheduleSource = tasks.find((task) => {
+    const sourceFieldKey = cleanText(task.schedule_source_field_key ?? undefined);
+
+    return sourceFieldKey && !getFieldMetadata(sourceFieldKey);
+  });
+
+  if (invalidScheduleSource) {
+    return { error: "Selecciona una fuente de horario valida.", field: null };
   }
 
   return { error: null, field, tasks };
@@ -137,17 +152,18 @@ export async function PATCH(request: Request, context: RouteParams) {
   }
 
   const relationRows = (validation.tasks ?? []).map((task, index) => {
-    const overrideStaffIds = normalizeStaffIds(task.override_staff_ids ?? task.override_staff_id);
+    const selectableStaffIds = normalizeSelectableStaffIds(task.override_staff_ids ?? task.override_staff_id);
 
     return {
-    rule_id: id,
-    master_task_id: task.master_task_id,
-    override_description: cleanText(task.override_description),
-    override_scheduled_time: normalizeTime(task.override_scheduled_time),
-    override_role_responsible: cleanText(task.override_role_responsible),
-    override_staff_id: overrideStaffIds[0] ?? null,
-    override_visibility: task.override_visibility || null,
-    sort_order: index,
+      rule_id: id,
+      master_task_id: task.master_task_id,
+      override_description: cleanText(task.override_description),
+      override_scheduled_time: normalizeTime(task.override_scheduled_time),
+      schedule_source_field_key: cleanText(task.schedule_source_field_key ?? undefined),
+      override_role_responsible: cleanText(task.override_role_responsible),
+      override_staff_id: selectableStaffIds[0] ?? null,
+      override_visibility: task.override_visibility || null,
+      sort_order: index,
     };
   });
 
@@ -162,16 +178,16 @@ export async function PATCH(request: Request, context: RouteParams) {
 
   for (const relation of insertedTasks ?? []) {
     const taskPayload = (validation.tasks ?? [])[relation.sort_order ?? 0];
-    const overrideStaffIds = normalizeStaffIds(taskPayload?.override_staff_ids ?? taskPayload?.override_staff_id);
+    const selectableStaffIds = normalizeSelectableStaffIds(taskPayload?.override_staff_ids ?? taskPayload?.override_staff_id);
     const relationError = await replaceStaffRelations({
       table: "questionnaire_task_rule_task_staff",
       ownerColumn: "rule_task_id",
       ownerId: relation.id,
-      staffIds: overrideStaffIds,
+      staffIds: selectableStaffIds,
     });
 
     if (relationError) {
-      return NextResponse.json({ error: "No se pudieron guardar los responsables override." }, { status: 500 });
+      return NextResponse.json({ error: "No se pudo guardar el personal seleccionable de la regla." }, { status: 500 });
     }
   }
 

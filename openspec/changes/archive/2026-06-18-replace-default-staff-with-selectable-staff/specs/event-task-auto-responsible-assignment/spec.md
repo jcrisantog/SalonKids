@@ -1,4 +1,4 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: Admin can auto-assign event task responsibles
 El sistema SHALL permitir que una administradora asigne responsables automaticamente a las tareas de un evento seleccionado usando el personal seleccionable de cada tarea como universo de candidatos.
@@ -100,56 +100,6 @@ El sistema SHALL tratar las tareas de evento vinculadas a tareas maestras con la
 #### Scenario: Resolver grupo desde regla o tarea maestra
 - **WHEN** una tarea de evento viene de una relacion regla-tarea o de una tarea base con tarea maestra asociada
 - **THEN** el sistema usa la agrupacion de la tarea maestra vinculada para decidir si participa en un bloque
-
-### Requirement: La autoasignacion usa grupos catalogados
-El sistema SHALL usar el grupo catalogado de la tarea maestra como fuente principal para formar bloques de autoasignacion.
-
-#### Scenario: Agrupar por ID de grupo catalogado
-- **WHEN** dos o mas tareas de evento provienen de tareas maestras asociadas al mismo grupo catalogado
-- **THEN** la autoasignacion las trata como un solo bloque aunque sus nombres o areas sean distintos
-
-#### Scenario: Tarea con grupo catalogado diferente
-- **WHEN** dos tareas tienen grupos catalogados distintos
-- **THEN** la autoasignacion las procesa en bloques separados
-
-#### Scenario: Tarea sin grupo catalogado
-- **WHEN** una tarea no tiene grupo catalogado ni grupo heredado
-- **THEN** la autoasignacion conserva el comportamiento individual por tarea
-
-#### Scenario: Compatibilidad con grupo heredado
-- **WHEN** una tarea aun no tiene `assignment_group_id` pero conserva `assignment_group_key`
-- **THEN** la autoasignacion puede usar la clave heredada como fallback para no romper bloques existentes
-
-#### Scenario: Grupo catalogado tiene prioridad sobre grupo heredado
-- **WHEN** una tarea tiene `assignment_group_id` y tambien conserva una clave heredada distinta
-- **THEN** la autoasignacion usa el grupo catalogado para decidir el bloque
-
-### Requirement: La autoasignacion evita repetir actividades recientes
-El sistema SHALL usar el historial de responsables de los ultimos 3 eventos anteriores para priorizar personal que no haya realizado la misma actividad o grupo operativo recientemente.
-
-#### Scenario: Priorizar persona sin repeticion reciente
-- **WHEN** la administradora ejecuta la autoasignacion y una actividad tiene dos candidatos activos disponibles
-- **THEN** el sistema asigna primero a la persona que no haya realizado esa misma actividad o grupo operativo en los ultimos 3 eventos
-
-#### Scenario: Detectar actividad por grupo catalogado
-- **WHEN** una tarea de evento proviene de una tarea maestra con `assignment_group_id`
-- **THEN** el sistema compara el historial usando ese grupo catalogado para decidir si la actividad fue repetida
-
-#### Scenario: Usar fallback para tareas sin grupo
-- **WHEN** una tarea no tiene grupo catalogado ni grupo heredado
-- **THEN** el sistema compara el historial usando la tarea maestra de origen o el nombre normalizado de la actividad
-
-#### Scenario: Permitir repeticion si no hay alternativa
-- **WHEN** todo el personal activo disponible ya realizo la misma actividad en los ultimos 3 eventos
-- **THEN** el sistema permite repetir responsable para no dejar la tarea sin asignacion
-
-#### Scenario: Desempatar con carga historica total
-- **WHEN** dos candidatos tienen el mismo historial para la actividad evaluada
-- **THEN** el sistema prioriza a quien tenga menos tareas asignadas en los ultimos 3 eventos
-
-#### Scenario: Aleatoriedad solo entre candidatos equivalentes
-- **WHEN** dos o mas candidatos tienen el mismo puntaje de repeticion y carga historica
-- **THEN** el sistema puede elegir aleatoriamente entre esos candidatos equivalentes
 
 ### Requirement: La rotacion respeta reglas existentes de autoasignacion
 El sistema SHALL aplicar rotacion historica sin romper personal seleccionable, grupos, cantidad requerida, modo completar, modo reemplazar ni ajustes manuales existentes.

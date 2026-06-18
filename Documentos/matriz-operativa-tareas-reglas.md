@@ -53,7 +53,7 @@ Estas respuestas generan tareas desde `questionnaire_task_rules`.
 | Musica | `djDanceMusic` | Verdadero | Preparar bloque de baile | Audio/DJ | Publica porque puede aparecer en itinerario. |
 | Musica | `microphoneNeeded` | Verdadero | Preparar microfono para mensajes | Audio/DJ | Interna de audio. |
 | Musica | `projectorNeeded` | Verdadero | Preparar proyector o pantalla | Audio/DJ | Interna de audio. |
-| Presentacion | `presentation` | Verdadero | Presentacion del festejado | Sin grupo | Publica. |
+| Presentacion | `presentation` | Verdadero | Presentacion del festejado | Sin grupo | Publica; usa `presentationTime` si existe. |
 | Presentacion | `characterShow` | Verdadero | Preparar aparicion de personaje; Aparicion de personaje | Animacion personaje | Interna y publica. |
 | Presentacion | `photoSession` | Verdadero | Sesion de fotos | Sin grupo | Publica. |
 | Presentacion | `surpriseGift` | Verdadero | Preparar sorpresa especial | Sin grupo | Publica. |
@@ -66,7 +66,7 @@ Estas respuestas generan tareas desde `questionnaire_task_rules`.
 | Menu externo | `externalMenu` | Verdadero | Coordinar proveedor o menu externo | Sin grupo | Interna. |
 | Cafe/dulces | `coffeeServiceTiming` | Respondido | Coordinar servicio de cafe | Cocina/menu | Interna. |
 | Cafe/dulces | `centerpieces` | Verdadero | Colocar centros de mesa | Montaje | Interna. |
-| Cafe/dulces | `candyTable` | Verdadero | Preparar mesa de dulces; Mesa de dulces | Dulces | Interna y publica. |
+| Cafe/dulces | `candyTable` | Verdadero | Preparar mesa de dulces; Mesa de dulces | Dulces | Interna y publica; la tarea publica usa `candyTableTime` si existe. |
 | Cafe/dulces | `gelatin` | Verdadero | Coordinar servicio de gelatina | Cocina/menu | Interna. |
 | Servicios | `nannyService` | Verdadero | Coordinar servicio de nanny | Sin grupo | Interna. |
 | Servicios | `valetCarCount` | Mayor que 0 | Coordinar valet o estacionamiento | Sin grupo | Interna. |
@@ -88,7 +88,7 @@ Estas respuestas generan tareas desde `questionnaire_task_rules`.
 | Programa | `iceCreamTime` | Respondido | Helados | Programa cocina | Usa la hora capturada. |
 | Programa | `tamalesTime` | Respondido | Tamales | Programa cocina | Usa la hora capturada. |
 | Programa | `celebratoryDanceTime` | Respondido | Baile del festejado | Sin grupo | Usa la hora capturada. |
-| Programa | `otherActivityTime` | Respondido | Otra actividad programada | Sin grupo | Sin hora automatica porque el campo es texto. |
+| Programa | `otherActivityName` | Respondido | Otra actividad programada | Sin grupo | Usa `otherActivityTime` como horario capturado. |
 
 ## Campos informativos sin regla inicial
 

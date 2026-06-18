@@ -71,7 +71,7 @@ function getSelectValues(select: HTMLSelectElement) {
   return Array.from(select.selectedOptions).map((option) => option.value);
 }
 
-function getTaskResponsibleIds(task: MasterTask) {
+function getTaskSelectableStaffIds(task: MasterTask) {
   const relationIds = [...(task.master_task_default_staff ?? [])]
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
     .map((relation) => relation.staff_id)
@@ -84,12 +84,12 @@ function getTaskResponsibleIds(task: MasterTask) {
   return task.default_staff_id ? [task.default_staff_id] : [];
 }
 
-function getTaskResponsibleLabel(task: MasterTask, staffById: Map<string, StaffMember>) {
-  const names = getTaskResponsibleIds(task).map(
-    (staffId) => staffById.get(staffId)?.name ?? "Responsable no encontrado",
+function getTaskSelectableStaffLabel(task: MasterTask, staffById: Map<string, StaffMember>) {
+  const names = getTaskSelectableStaffIds(task).map(
+    (staffId) => staffById.get(staffId)?.name ?? "Personal no encontrado",
   );
 
-  return names.length ? names.join(", ") : "Sin responsable";
+  return names.length ? names.join(", ") : "Todo el staff activo";
 }
 
 function getTaskGroupLabel(task: MasterTask) {
@@ -167,7 +167,7 @@ export default function TasksPage() {
           task.name,
           task.base_description,
           task.visibility === "publica" ? "Publica" : "Interna",
-          getTaskResponsibleLabel(task, staffById),
+          getTaskSelectableStaffLabel(task, staffById),
           String(task.required_responsible_count ?? 1),
           getTaskGroupLabel(task),
           task.assignment_group_key,
@@ -255,7 +255,7 @@ export default function TasksPage() {
       visibility: task.visibility,
       area: task.area ?? "",
       default_role: task.default_role ?? "",
-      default_staff_ids: getTaskResponsibleIds(task),
+      default_staff_ids: getTaskSelectableStaffIds(task),
       required_responsible_count: String(task.required_responsible_count ?? 1),
       assignment_group_id: task.assignment_group_id ?? "",
     });
@@ -324,7 +324,7 @@ export default function TasksPage() {
           <p className="text-sm font-semibold uppercase tracking-wider text-green-300">Catalogos</p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight">Tareas Maestras</h1>
           <p className="mt-2 text-gray-400">
-            Define plantillas operativas con responsable asignado y visibilidad.
+            Define plantillas operativas, personal seleccionable y visibilidad.
           </p>
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -358,7 +358,7 @@ export default function TasksPage() {
           </div>
 
           <div className="grid gap-4 content-start">
-            <Field label="Responsables default">
+            <Field label="Personal seleccionable">
               <select
                 multiple
                 size={Math.min(Math.max(sortedStaff.length, 4), 7)}
@@ -375,6 +375,9 @@ export default function TasksPage() {
                   </option>
                 ))}
               </select>
+              <p className="mt-2 text-xs leading-5 text-gray-500">
+                Si no seleccionas personas, la autoasignacion considerara a todo el staff activo.
+              </p>
             </Field>
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -464,7 +467,7 @@ export default function TasksPage() {
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 className="h-full min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-gray-600"
-                placeholder="Nombre, responsable, visibilidad..."
+                placeholder="Nombre, personal, visibilidad..."
               />
               {hasSearch ? (
                 <button
@@ -534,7 +537,7 @@ export default function TasksPage() {
               <thead className="border-b border-white/10 bg-white/[0.04] text-xs uppercase tracking-wider text-gray-500">
                 <tr>
                   <th className="px-5 py-4">Tarea</th>
-                  <th className="px-5 py-4">Responsables</th>
+                  <th className="px-5 py-4">Personal seleccionable</th>
                   <th className="px-5 py-4">Cantidad</th>
                   <th className="px-5 py-4">Grupo</th>
                   <th className="px-5 py-4">Visibilidad</th>
@@ -551,7 +554,7 @@ export default function TasksPage() {
                       </p>
                     </td>
                     <td className="px-5 py-4 text-gray-300">
-                      {getTaskResponsibleLabel(task, staffById)}
+                      {getTaskSelectableStaffLabel(task, staffById)}
                     </td>
                     <td className="px-5 py-4 text-gray-300">
                       {task.required_responsible_count ?? 1}

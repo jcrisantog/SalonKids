@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   Check,
   FileText,
+  History,
   Loader2,
   Pencil,
   Plus,
@@ -778,8 +779,14 @@ export default function EventTasksPage({ params }: EventTasksPageProps) {
         method: "POST",
         body: JSON.stringify({ mode }),
       });
+      const repeatNote = result.unavoidableRepeats
+        ? ` ${result.unavoidableRepeats} bloque(s) repitieron responsable por falta de alternativas recientes.`
+        : "";
+      const shortageNote = result.candidateShortages
+        ? ` ${result.candidateShortages} bloque(s) tuvieron candidatos permitidos insuficientes.`
+        : "";
       setToastMessage(
-        `Asignacion lista: ${result.updated ?? 0} actualizadas, ${result.incomplete ?? 0} incompletas, ${result.unchanged ?? 0} sin cambios.`,
+        `Asignacion lista: ${result.updated ?? 0} actualizadas, ${result.incomplete ?? 0} incompletas, ${result.unchanged ?? 0} sin cambios.${repeatNote}${shortageNote}`,
       );
       await loadTasks();
     } catch (assignError) {
@@ -1043,6 +1050,13 @@ export default function EventTasksPage({ params }: EventTasksPageProps) {
               </div>
             </div>
             <div className="grid gap-2">
+              <Link
+                href="/admin/staff-task-history"
+                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md border border-teal-300/30 bg-teal-300/10 px-4 text-sm font-semibold text-teal-100 transition hover:bg-teal-300/15"
+              >
+                <History className="h-4 w-4" />
+                Historial staff
+              </Link>
               <button
                 type="button"
                 onClick={handlePrintRequest}

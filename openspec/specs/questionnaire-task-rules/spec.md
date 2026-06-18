@@ -61,7 +61,7 @@ El sistema SHALL soportar condiciones simples por regla con operadores `answered
 - **THEN** el sistema considera que la regla aplica
 
 ### Requirement: Rules generate master tasks
-El sistema SHALL permitir que cada regla genere una o mas tareas desde el catalogo `master_tasks`, con overrides opcionales de hora, visibilidad, descripcion, orden y responsables asignados por cada tarea asociada.
+El sistema SHALL permitir que cada regla genere una o mas tareas desde el catalogo `master_tasks`, con overrides opcionales de hora, visibilidad, descripcion, orden y personal seleccionable por cada tarea asociada.
 
 #### Scenario: Generar una tarea desde catalogo
 - **WHEN** una respuesta cumple una regla activa con una tarea maestra asociada
@@ -72,28 +72,43 @@ El sistema SHALL permitir que cada regla genere una o mas tareas desde el catalo
 - **THEN** el sistema crea una tarea de evento por cada tarea maestra asociada a la regla
 
 #### Scenario: Aplicar overrides independientes por tarea
-- **WHEN** la relacion regla-tarea define hora, responsables asignados, visibilidad o descripcion para una tarea asociada
+- **WHEN** la relacion regla-tarea define hora, personal seleccionable, visibilidad o descripcion para una tarea asociada
 - **THEN** el sistema usa esos valores solo para esa tarea y conserva los valores de las demas tareas asociadas
 
 #### Scenario: Respetar orden operativo
 - **WHEN** una regla tiene multiples tareas asociadas con `sort_order`
 - **THEN** el sistema muestra y genera las tareas en el orden configurado
 
-#### Scenario: Propagar responsables predeterminados de tarea maestra
-- **WHEN** una respuesta cumple una regla cuya tarea maestra tiene responsables predeterminados y la relacion regla-tarea no define responsables distintos
-- **THEN** el sistema crea o actualiza la tarea de evento con esa lista de responsables
+#### Scenario: No propagar personal seleccionable como responsables
+- **WHEN** una respuesta cumple una regla cuya tarea maestra tiene personal seleccionable y la relacion regla-tarea no define una lista distinta
+- **THEN** el sistema crea o actualiza la tarea de evento sin copiar esa lista como responsables asignados
 
-#### Scenario: Usar override de responsables de regla
-- **WHEN** una respuesta cumple una regla cuya relacion regla-tarea define responsables override
-- **THEN** el sistema crea o actualiza la tarea de evento con esa lista aunque la tarea maestra tenga otros responsables predeterminados
+#### Scenario: Usar override de personal seleccionable de regla
+- **WHEN** una respuesta cumple una regla cuya relacion regla-tarea define personal seleccionable
+- **THEN** el sistema conserva esa lista como candidatos permitidos para la autoasignacion de esa tarea sin asignarlos como responsables concretos
 
 #### Scenario: Crear tarea sin staff asignado
-- **WHEN** una regla genera una tarea sin staff asignado por override ni por tarea maestra
+- **WHEN** una regla genera una tarea sin responsables manuales existentes
 - **THEN** el sistema crea o actualiza la tarea de evento sin responsables asignados y sin requerir un responsable visible
 
 #### Scenario: Preservar responsables manuales en tarea generada
 - **WHEN** una tarea generada por una regla fue editada manualmente y tiene responsables personalizados
 - **THEN** futuros guardados de cuestionario no reemplazan esa lista de responsables
+
+### Requirement: Rule task can use a related questionnaire time
+El sistema SHALL permitir que cada tarea asociada a una regla de cuestionario tome su horario desde un campo de respuesta configurable, independiente del campo que dispara la regla.
+
+#### Scenario: Tarea usa horario relacionado
+- **WHEN** una regla activa se cumple y una tarea asociada define `schedule_source_field_key`
+- **THEN** el sistema usa el valor de ese campo como `scheduled_time` si es una hora valida
+
+#### Scenario: Override de hora tiene prioridad
+- **WHEN** una tarea asociada define `override_scheduled_time` y tambien `schedule_source_field_key`
+- **THEN** el sistema usa `override_scheduled_time`
+
+#### Scenario: Compatibilidad con reglas de hora existentes
+- **WHEN** una regla se dispara por un campo de tipo hora y no define fuente de horario
+- **THEN** el sistema usa la respuesta del campo disparador como horario de la tarea
 
 ### Requirement: Multiple task preview is explicit
 El sistema SHALL mostrar una vista previa clara de todas las tareas que se generaran cuando una regla de cuestionario tenga multiples tareas asociadas.
@@ -161,6 +176,21 @@ El sistema SHALL sembrar reglas iniciales depuradas que cubran solo respuestas d
 #### Scenario: Sembrar multiples tareas por pregunta
 - **WHEN** una respuesta requiere preparacion interna y momento publico
 - **THEN** el seed asocia ambas tareas a la misma regla con visibilidad y orden operativo independientes
+
+### Requirement: Initial program rules map related activity times
+El sistema SHALL sembrar reglas iniciales para actividades programadas que tomen el horario del campo de hora correspondiente, aun cuando la regla se dispare por un campo relacionado.
+
+#### Scenario: Presentacion usa hora de programa
+- **WHEN** la regla de presentacion genera la tarea publica de presentacion
+- **THEN** la tarea usa `presentationTime` como fuente de horario cuando exista
+
+#### Scenario: Mesa de dulces usa hora de programa
+- **WHEN** la regla de mesa de dulces genera la tarea publica de mesa de dulces
+- **THEN** la tarea usa `candyTableTime` como fuente de horario cuando exista
+
+#### Scenario: Otra actividad usa nombre y hora
+- **WHEN** el cliente captura otra actividad y su horario
+- **THEN** la tarea "Otra actividad programada" usa el nombre capturado y el horario capturado
 
 ### Requirement: Configurable rules replace hardcoded questionnaire generation
 El sistema SHALL usar reglas configurables como fuente principal para generar tareas desde el cuestionario.
@@ -245,7 +275,7 @@ El sistema SHALL crear tareas desde Reglas Cuestionario usando las mismas reglas
 - **THEN** el sistema rechaza el guardado y muestra un mensaje claro sin cerrar el modal
 
 #### Scenario: Responsable predeterminado invalido
-- **WHEN** la administradora selecciona uno o mas responsables predeterminados que no existen en el catalogo de staff
+- **WHEN** la administradora selecciona uno o mas integrantes de personal seleccionable que no existen en el catalogo de staff
 - **THEN** el sistema rechaza la creacion y muestra el mensaje de validacion del servidor
 
 #### Scenario: Error de servidor conserva datos del modal

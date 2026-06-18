@@ -135,6 +135,7 @@ BEGIN
     master_task_id,
     override_description,
     override_scheduled_time,
+    schedule_source_field_key,
     override_role_responsible,
     override_visibility,
     sort_order
@@ -144,6 +145,7 @@ BEGIN
     current_task_id,
     p_task_description,
     p_time,
+    NULL,
     p_default_role,
     p_visibility,
     p_sort_order
@@ -151,6 +153,7 @@ BEGIN
   ON CONFLICT (rule_id, master_task_id) DO UPDATE SET
     override_description = EXCLUDED.override_description,
     override_scheduled_time = EXCLUDED.override_scheduled_time,
+    schedule_source_field_key = COALESCE(public.questionnaire_task_rule_tasks.schedule_source_field_key, EXCLUDED.schedule_source_field_key),
     override_role_responsible = EXCLUDED.override_role_responsible,
     override_visibility = EXCLUDED.override_visibility,
     sort_order = EXCLUDED.sort_order;
@@ -789,6 +792,28 @@ SELECT pg_temp.ensure_questionnaire_rule_task(
 );
 
 -- Programa publico
+UPDATE public.questionnaire_task_rules old_rule
+SET
+  field_key = 'otherActivityName',
+  field_label = 'Otra actividad',
+  updated_at = NOW()
+WHERE old_rule.field_key = 'otherActivityTime'
+  AND old_rule.section_id = 'program'
+  AND NOT EXISTS (
+    SELECT 1
+    FROM public.questionnaire_task_rules existing_rule
+    WHERE existing_rule.field_key = 'otherActivityName'
+      AND existing_rule.operator = old_rule.operator
+      AND COALESCE(existing_rule.expected_value::text, 'null') = COALESCE(old_rule.expected_value::text, 'null')
+  );
+
+UPDATE public.questionnaire_task_rules old_rule
+SET
+  is_active = FALSE,
+  updated_at = NOW()
+WHERE old_rule.field_key = 'otherActivityTime'
+  AND old_rule.section_id = 'program';
+
 SELECT pg_temp.ensure_questionnaire_rule_task(
   'foodStartTime',
   'Inicio de comida',
@@ -895,7 +920,7 @@ SELECT pg_temp.ensure_questionnaire_rule_task(
 );
 
 SELECT pg_temp.ensure_questionnaire_rule_task(
-  'otherActivityTime',
+  'otherActivityName',
   'Otra actividad',
   'program',
   '15. Programa de actividades',
@@ -908,6 +933,24 @@ SELECT pg_temp.ensure_questionnaire_rule_task(
   'publica',
   NULL
 );
+
+-- Fuentes de horario capturadas en campos relacionados.
+WITH schedule_sources(rule_field_key, task_name, source_field_key) AS (
+  VALUES
+    ('presentation', 'Presentacion del festejado', 'presentationTime'),
+    ('photoSession', 'Sesion de fotos', 'photoSessionTime'),
+    ('externalDecoration', 'Recibir proveedor de decoracion', 'decoratorArrivalTime'),
+    ('candyTable', 'Mesa de dulces', 'candyTableTime'),
+    ('otherActivityName', 'Otra actividad programada', 'otherActivityTime')
+)
+UPDATE public.questionnaire_task_rule_tasks rule_task
+SET schedule_source_field_key = schedule_sources.source_field_key
+FROM schedule_sources
+JOIN public.questionnaire_task_rules rule ON rule.field_key = schedule_sources.rule_field_key
+JOIN public.master_tasks task ON task.name = schedule_sources.task_name
+WHERE rule_task.rule_id = rule.id
+  AND rule_task.master_task_id = task.id
+  AND rule.field_key = schedule_sources.rule_field_key;
 
 -- Agrupaciones de asignacion iniciales.
 -- Las tareas no listadas quedan sin grupo para conservar asignacion individual.

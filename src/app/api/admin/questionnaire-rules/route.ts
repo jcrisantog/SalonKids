@@ -4,7 +4,7 @@ import { requireAdmin } from "@/lib/admin-api";
 import { getQuestionnaireFieldCatalog } from "@/lib/questionnaire-schema";
 import {
   isMissingRelationError,
-  normalizeStaffIds,
+  normalizeSelectableStaffIds,
   replaceStaffRelations,
   validateStaffIds,
 } from "@/lib/staff-assignments";
@@ -15,6 +15,7 @@ type RuleTaskPayload = {
   master_task_id?: string;
   override_description?: string;
   override_scheduled_time?: string;
+  schedule_source_field_key?: string | null;
   override_role_responsible?: string;
   override_staff_id?: string | null;
   override_staff_ids?: string[];
@@ -41,7 +42,7 @@ const validOperators: QuestionnaireRuleOperator[] = [
 ];
 
 const rulesSelect =
-  "id, field_key, field_label, section_id, section_title, operator, expected_value, is_active, created_at, updated_at, questionnaire_task_rule_tasks(id, master_task_id, override_description, override_scheduled_time, override_role_responsible, override_staff_id, override_visibility, sort_order, questionnaire_task_rule_task_staff(staff_id, sort_order, staff(id, name, primary_role, is_active)), master_tasks(id, name, base_description, visibility, area, default_role, default_staff_id, required_responsible_count, assignment_group_id, assignment_group_key, assignment_group_label, task_groups(id, name, key, is_active), master_task_default_staff(staff_id, sort_order, staff(id, name, primary_role, is_active))))";
+  "id, field_key, field_label, section_id, section_title, operator, expected_value, is_active, created_at, updated_at, questionnaire_task_rule_tasks(id, master_task_id, override_description, override_scheduled_time, schedule_source_field_key, override_role_responsible, override_staff_id, override_visibility, sort_order, questionnaire_task_rule_task_staff(staff_id, sort_order, staff(id, name, primary_role, is_active)), master_tasks(id, name, base_description, visibility, area, default_role, default_staff_id, required_responsible_count, assignment_group_id, assignment_group_key, assignment_group_label, task_groups(id, name, key, is_active), master_task_default_staff(staff_id, sort_order, staff(id, name, primary_role, is_active))))";
 const legacyRulesSelect =
   "id, field_key, field_label, section_id, section_title, operator, expected_value, is_active, created_at, updated_at, questionnaire_task_rule_tasks(id, master_task_id, override_description, override_scheduled_time, override_role_responsible, override_staff_id, override_visibility, sort_order, master_tasks(id, name, base_description, visibility, area, default_role, default_staff_id))";
 const masterTasksSelect =
@@ -72,7 +73,7 @@ function getFieldMetadata(fieldKey?: string) {
 
 async function validateRuleStaffIds(tasks: RuleTaskPayload[]) {
   const staffIds = Array.from(
-    new Set(tasks.flatMap((task) => normalizeStaffIds(task.override_staff_ids ?? task.override_staff_id))),
+    new Set(tasks.flatMap((task) => normalizeSelectableStaffIds(task.override_staff_ids ?? task.override_staff_id))),
   );
 
   return validateStaffIds(staffIds);
@@ -100,6 +101,16 @@ function validatePayload(payload: RulePayload) {
 
   if (uniqueTaskIds.size !== taskIds.length) {
     return { error: "No puedes asociar la misma tarea maestra mas de una vez en la misma regla.", field: null };
+  }
+
+  const invalidScheduleSource = tasks.find((task) => {
+    const sourceFieldKey = cleanText(task.schedule_source_field_key ?? undefined);
+
+    return sourceFieldKey && !getFieldMetadata(sourceFieldKey);
+  });
+
+  if (invalidScheduleSource) {
+    return { error: "Selecciona una fuente de horario valida.", field: null };
   }
 
   return { error: null, field, tasks };
@@ -219,17 +230,18 @@ export async function POST(request: Request) {
   }
 
   const relationRows = (validation.tasks ?? []).map((task, index) => {
-    const overrideStaffIds = normalizeStaffIds(task.override_staff_ids ?? task.override_staff_id);
+    const selectableStaffIds = normalizeSelectableStaffIds(task.override_staff_ids ?? task.override_staff_id);
 
     return {
-    rule_id: rule.id,
-    master_task_id: task.master_task_id,
-    override_description: cleanText(task.override_description),
-    override_scheduled_time: normalizeTime(task.override_scheduled_time),
-    override_role_responsible: cleanText(task.override_role_responsible),
-    override_staff_id: overrideStaffIds[0] ?? null,
-    override_visibility: task.override_visibility || null,
-    sort_order: index,
+      rule_id: rule.id,
+      master_task_id: task.master_task_id,
+      override_description: cleanText(task.override_description),
+      override_scheduled_time: normalizeTime(task.override_scheduled_time),
+      schedule_source_field_key: cleanText(task.schedule_source_field_key ?? undefined),
+      override_role_responsible: cleanText(task.override_role_responsible),
+      override_staff_id: selectableStaffIds[0] ?? null,
+      override_visibility: task.override_visibility || null,
+      sort_order: index,
     };
   });
 
@@ -245,17 +257,17 @@ export async function POST(request: Request) {
 
   for (const relation of insertedTasks ?? []) {
     const taskPayload = (validation.tasks ?? [])[relation.sort_order ?? 0];
-    const overrideStaffIds = normalizeStaffIds(taskPayload?.override_staff_ids ?? taskPayload?.override_staff_id);
+    const selectableStaffIds = normalizeSelectableStaffIds(taskPayload?.override_staff_ids ?? taskPayload?.override_staff_id);
     const relationError = await replaceStaffRelations({
       table: "questionnaire_task_rule_task_staff",
       ownerColumn: "rule_task_id",
       ownerId: relation.id,
-      staffIds: overrideStaffIds,
+      staffIds: selectableStaffIds,
     });
 
     if (relationError) {
       await supabaseAdmin.from("questionnaire_task_rules").delete().eq("id", rule.id);
-      return NextResponse.json({ error: "No se pudieron guardar los responsables override." }, { status: 500 });
+      return NextResponse.json({ error: "No se pudo guardar el personal seleccionable de la regla." }, { status: 500 });
     }
   }
 

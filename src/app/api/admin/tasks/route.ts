@@ -5,7 +5,7 @@ import {
   getTaskGroupById,
   normalizeAssignmentGroup,
   normalizeRequiredResponsibleCount,
-  normalizeStaffIds,
+  normalizeSelectableStaffIds,
   replaceStaffRelations,
   validateStaffIds,
 } from "@/lib/staff-assignments";
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "El nombre de la tarea es obligatorio." }, { status: 400 });
   }
 
-  const defaultStaffIds = normalizeStaffIds(body.default_staff_ids ?? body.default_staff_id);
+  const selectableStaffIds = normalizeSelectableStaffIds(body.default_staff_ids ?? body.default_staff_id);
   const requiredResponsibleCount = normalizeRequiredResponsibleCount(body.required_responsible_count);
   const taskGroup = await getTaskGroupById(body.assignment_group_id);
   const legacyAssignmentGroup = normalizeAssignmentGroup(body.assignment_group_label ?? body.assignment_group);
@@ -96,7 +96,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const staffError = await validateStaffIds(defaultStaffIds);
+  const staffError = await validateStaffIds(selectableStaffIds);
 
   if (staffError) {
     return NextResponse.json({ error: staffError }, { status: 400 });
@@ -110,7 +110,7 @@ export async function POST(request: Request) {
       visibility: body.visibility ?? "interna",
       area: body.area?.trim() || null,
       default_role: body.default_role?.trim() || null,
-      default_staff_id: defaultStaffIds[0] ?? null,
+      default_staff_id: selectableStaffIds[0] ?? null,
       required_responsible_count: requiredResponsibleCount,
       assignment_group_id: taskGroup?.id ?? null,
       assignment_group_key: taskGroup?.key ?? legacyAssignmentGroup.key,
@@ -127,12 +127,12 @@ export async function POST(request: Request) {
     table: "master_task_default_staff",
     ownerColumn: "master_task_id",
     ownerId: data.id,
-    staffIds: defaultStaffIds,
+    staffIds: selectableStaffIds,
   });
 
   if (relationError) {
     await supabaseAdmin.from("master_tasks").delete().eq("id", data.id);
-    return NextResponse.json({ error: "No se pudieron guardar los responsables default." }, { status: 500 });
+    return NextResponse.json({ error: "No se pudo guardar el personal seleccionable." }, { status: 500 });
   }
 
   const taskResult = await getMasterTask(data.id);
