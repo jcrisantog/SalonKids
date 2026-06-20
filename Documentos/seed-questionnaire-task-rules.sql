@@ -205,7 +205,7 @@ SELECT pg_temp.ensure_questionnaire_rule_task(
   'Pastel',
   'Coordinadora',
   'publica',
-  '18:00',
+  NULL,
   1
 );
 
@@ -422,7 +422,7 @@ SELECT pg_temp.ensure_questionnaire_rule_task(
   'Pinata',
   'Animacion',
   'publica',
-  '18:30',
+  NULL,
   1
 );
 
@@ -757,8 +757,128 @@ SELECT pg_temp.ensure_questionnaire_rule_task(
   'Preparar juegos, participantes, limites, premios, musica y staff requerido para dinamicas.',
   'Animacion',
   'Animacion',
-  'publica',
+  'interna',
   '16:30'
+);
+
+SELECT pg_temp.ensure_questionnaire_rule_task(
+  'reyPide',
+  'Rey pide / Simon says',
+  'dynamics',
+  '13. Dinamicas durante el evento',
+  'is_true',
+  NULL,
+  'Dinamica Rey pide',
+  'Activar Rey pide / Simon says con participantes y limites indicados por la familia.',
+  'Animacion',
+  'Animacion',
+  'publica',
+  NULL
+);
+
+SELECT pg_temp.ensure_questionnaire_rule_task(
+  'lobo',
+  'Lobo, estas ahi',
+  'dynamics',
+  '13. Dinamicas durante el evento',
+  'is_true',
+  NULL,
+  'Dinamica Lobo',
+  'Activar Lobo, estas ahi con participantes y limites indicados por la familia.',
+  'Animacion',
+  'Animacion',
+  'publica',
+  NULL
+);
+
+SELECT pg_temp.ensure_questionnaire_rule_task(
+  'camiseta',
+  'Camiseta',
+  'dynamics',
+  '13. Dinamicas durante el evento',
+  'is_true',
+  NULL,
+  'Dinamica Camiseta',
+  'Activar dinamica de camiseta con participantes y limites indicados por la familia.',
+  'Animacion',
+  'Animacion',
+  'publica',
+  NULL
+);
+
+SELECT pg_temp.ensure_questionnaire_rule_task(
+  'gatoGigante',
+  'Gato gigante',
+  'dynamics',
+  '13. Dinamicas durante el evento',
+  'is_true',
+  NULL,
+  'Dinamica Gato gigante',
+  'Activar Gato gigante con participantes y limites indicados por la familia.',
+  'Animacion',
+  'Animacion',
+  'publica',
+  NULL
+);
+
+SELECT pg_temp.ensure_questionnaire_rule_task(
+  'sillas',
+  'Juego de las sillas',
+  'dynamics',
+  '13. Dinamicas durante el evento',
+  'is_true',
+  NULL,
+  'Dinamica Juego de las sillas',
+  'Activar juego de las sillas con participantes y limites indicados por la familia.',
+  'Animacion',
+  'Animacion',
+  'publica',
+  NULL
+);
+
+SELECT pg_temp.ensure_questionnaire_rule_task(
+  'loteria',
+  'Loteria',
+  'dynamics',
+  '13. Dinamicas durante el evento',
+  'is_true',
+  NULL,
+  'Dinamica Loteria',
+  'Activar loteria con participantes y limites indicados por la familia.',
+  'Animacion',
+  'Animacion',
+  'publica',
+  NULL
+);
+
+SELECT pg_temp.ensure_questionnaire_rule_task(
+  'futbol',
+  'Partidos de futbol',
+  'dynamics',
+  '13. Dinamicas durante el evento',
+  'is_true',
+  NULL,
+  'Dinamica Futbol',
+  'Activar partidos de futbol con modalidad, duracion y participantes indicados por la familia.',
+  'Animacion',
+  'Animacion',
+  'publica',
+  NULL
+);
+
+SELECT pg_temp.ensure_questionnaire_rule_task(
+  'tetrix',
+  'Tetrix gigante',
+  'dynamics',
+  '13. Dinamicas durante el evento',
+  'is_true',
+  NULL,
+  'Dinamica Tetrix gigante',
+  'Activar Tetrix gigante con participantes y limites indicados por la familia.',
+  'Animacion',
+  'Animacion',
+  'publica',
+  NULL
 );
 
 SELECT pg_temp.ensure_questionnaire_rule_task(
@@ -940,8 +1060,18 @@ WITH schedule_sources(rule_field_key, task_name, source_field_key) AS (
     ('presentation', 'Presentacion del festejado', 'presentationTime'),
     ('photoSession', 'Sesion de fotos', 'photoSessionTime'),
     ('externalDecoration', 'Recibir proveedor de decoracion', 'decoratorArrivalTime'),
+    ('cake', 'Protocolo de pastel', 'cakeTime'),
+    ('pinata', 'Pinata', 'pinataTime'),
     ('candyTable', 'Mesa de dulces', 'candyTableTime'),
-    ('otherActivityName', 'Otra actividad programada', 'otherActivityTime')
+    ('otherActivityName', 'Otra actividad programada', 'otherActivityTime'),
+    ('reyPide', 'Dinamica Rey pide', 'reyPideTime'),
+    ('lobo', 'Dinamica Lobo', 'loboTime'),
+    ('camiseta', 'Dinamica Camiseta', 'camisetaTime'),
+    ('gatoGigante', 'Dinamica Gato gigante', 'gatoGiganteTime'),
+    ('sillas', 'Dinamica Juego de las sillas', 'sillasTime'),
+    ('loteria', 'Dinamica Loteria', 'loteriaTime'),
+    ('futbol', 'Dinamica Futbol', 'futbolTime'),
+    ('tetrix', 'Dinamica Tetrix gigante', 'tetrixTime')
 )
 UPDATE public.questionnaire_task_rule_tasks rule_task
 SET schedule_source_field_key = schedule_sources.source_field_key
@@ -967,6 +1097,15 @@ WITH grouped(task_name, assignment_group_key, assignment_group_label) AS (
     ('Preparar proyector o pantalla', 'audio-dj', 'Audio/DJ'),
     ('Preparar aparicion de personaje', 'animacion-personaje', 'Animacion personaje'),
     ('Aparicion de personaje', 'animacion-personaje', 'Animacion personaje'),
+    ('Preparar dinamicas seleccionadas', 'animacion-dinamicas', 'Animacion dinamicas'),
+    ('Dinamica Rey pide', 'animacion-dinamicas', 'Animacion dinamicas'),
+    ('Dinamica Lobo', 'animacion-dinamicas', 'Animacion dinamicas'),
+    ('Dinamica Camiseta', 'animacion-dinamicas', 'Animacion dinamicas'),
+    ('Dinamica Gato gigante', 'animacion-dinamicas', 'Animacion dinamicas'),
+    ('Dinamica Juego de las sillas', 'animacion-dinamicas', 'Animacion dinamicas'),
+    ('Dinamica Loteria', 'animacion-dinamicas', 'Animacion dinamicas'),
+    ('Dinamica Futbol', 'animacion-dinamicas', 'Animacion dinamicas'),
+    ('Dinamica Tetrix gigante', 'animacion-dinamicas', 'Animacion dinamicas'),
     ('Preparar area de pinata', 'pinata', 'Pinata'),
     ('Pinata', 'pinata', 'Pinata'),
     ('Preparar bolsitas de celofan', 'pinata', 'Pinata'),

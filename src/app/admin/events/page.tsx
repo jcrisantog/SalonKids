@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ArrowDown,
+  ArrowUp,
   CalendarDays,
   CheckSquare,
   Clipboard,
@@ -25,6 +27,7 @@ import {
 import { matchesSearch, normalizeSearchText } from "@/lib/search";
 
 type EventStatus = "pendiente" | "guardado" | "validado" | "finalizado";
+type DateSortDirection = "desc" | "asc";
 
 type EventRecord = {
   id: string;
@@ -108,6 +111,7 @@ export default function EventsPage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [dateSortDirection, setDateSortDirection] = useState<DateSortDirection>("desc");
 
   const upcomingCount = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
@@ -124,8 +128,8 @@ export default function EventsPage() {
   }, []);
   const hasSearch = normalizeSearchText(searchQuery).length > 0;
   const visibleEvents = useMemo(
-    () =>
-      events.filter((event) =>
+    () => {
+      const filteredEvents = events.filter((event) =>
         matchesSearch(searchQuery, [
           event.celebratory_name,
           event.age,
@@ -141,8 +145,17 @@ export default function EventsPage() {
           event.clients?.phone,
           event.clients?.email,
         ]),
-      ),
-    [events, searchQuery],
+      );
+
+      return [...filteredEvents].sort((firstEvent, secondEvent) => {
+        const dateComparison = firstEvent.event_date.localeCompare(secondEvent.event_date);
+        const timeComparison = firstEvent.start_time.localeCompare(secondEvent.start_time);
+        const comparison = dateComparison || timeComparison;
+
+        return dateSortDirection === "asc" ? comparison : -comparison;
+      });
+    },
+    [dateSortDirection, events, searchQuery],
   );
 
   const adminFetch = useCallback(async (path: string, init?: RequestInit) => {
@@ -527,7 +540,27 @@ export default function EventsPage() {
                 <tr>
                   <th className="px-5 py-4">Evento</th>
                   <th className="px-5 py-4">Cliente</th>
-                  <th className="px-5 py-4">Fecha</th>
+                  <th className="px-5 py-4">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setDateSortDirection((current) => (current === "desc" ? "asc" : "desc"))
+                      }
+                      className="inline-flex items-center gap-2 rounded-md text-left transition hover:text-white"
+                      title={
+                        dateSortDirection === "desc"
+                          ? "Ordenar desde la fecha mas vieja"
+                          : "Ordenar desde la fecha mas reciente"
+                      }
+                    >
+                      Fecha
+                      {dateSortDirection === "desc" ? (
+                        <ArrowDown className="h-3.5 w-3.5" />
+                      ) : (
+                        <ArrowUp className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  </th>
                   <th className="px-5 py-4">Horario</th>
                   <th className="px-5 py-4">Estatus</th>
                   <th className="px-5 py-4">Cuestionario</th>

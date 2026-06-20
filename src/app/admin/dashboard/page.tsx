@@ -2,13 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Calendar, CheckSquare, ClipboardCheck, Loader2, Sparkles, Users } from "lucide-react";
+import { Calendar, ClipboardCheck, ClipboardList, Loader2, Sparkles, Users } from "lucide-react";
 
 type DashboardStats = {
   upcomingEvents: number;
   activeStaff: number;
-  masterTasks: number;
-  pendingTasks: number;
+  pendingQuestionnaires: number;
   completedQuestionnaires: number;
 };
 
@@ -35,7 +34,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Bienvenida, Duena</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Bienvenid@</h1>
         <p className="mt-2 text-gray-400">Aqui tienes un resumen de la logistica de hoy.</p>
       </div>
 
@@ -45,7 +44,7 @@ export default function DashboardPage() {
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
           icon={<Calendar className="text-blue-400" />}
           label="Eventos Proximos"
@@ -59,22 +58,16 @@ export default function DashboardPage() {
           trend="Disponibles para asignar"
         />
         <StatCard
-          icon={<CheckSquare className="text-green-400" />}
-          label="Tareas Master"
-          value={stats ? String(stats.masterTasks) : "..."}
-          trend="Listas para inyectar"
-        />
-        <StatCard
-          icon={<Sparkles className="text-yellow-400" />}
-          label="Backlog Pendiente"
-          value={stats ? String(stats.pendingTasks) : "..."}
-          trend="Tareas de eventos por cerrar"
+          icon={<ClipboardList className="text-yellow-400" />}
+          label="Cuestionarios Pendientes"
+          value={stats ? String(stats.pendingQuestionnaires) : "..."}
+          trend="Solo eventos proximos"
         />
         <StatCard
           icon={<ClipboardCheck className="text-cyan-400" />}
           label="Cuestionarios Enviados"
           value={stats ? String(stats.completedQuestionnaires) : "..."}
-          trend="Completados por cliente"
+          trend="Solo eventos proximos"
         />
       </div>
 

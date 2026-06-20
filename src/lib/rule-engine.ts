@@ -35,6 +35,7 @@ export type QuestionnaireData = {
   emotionalBox?: boolean;
   cakeCallSong?: string;
   cakeDedicatedSong?: string;
+  cakeTime?: string;
   cakeBatucada?: boolean;
   cakeSouvenirs?: boolean;
   cakeSparklers?: boolean;
@@ -89,6 +90,7 @@ export type QuestionnaireData = {
   pinataCellophaneBags?: boolean;
   pinataStickProvided?: boolean;
   pinataSafeOpening?: boolean;
+  pinataTime?: string;
 
   reservedTables?: boolean;
   reservedTablesNotes?: string;
@@ -174,19 +176,27 @@ export type QuestionnaireData = {
   dynamicsPlayerLimit?: string;
   reyPide?: boolean;
   reyPideParticipants?: string;
+  reyPideTime?: string;
   lobo?: boolean;
   loboParticipants?: string;
+  loboTime?: string;
   camiseta?: boolean;
   camisetaParticipants?: string;
+  camisetaTime?: string;
   gatoGigante?: boolean;
   gatoGiganteParticipants?: string;
+  gatoGiganteTime?: string;
   sillas?: boolean;
   sillasParticipants?: string;
+  sillasTime?: string;
   loteria?: boolean;
   loteriaParticipants?: string;
+  loteriaTime?: string;
   futbol?: boolean;
   futbolParticipants?: string;
+  futbolTime?: string;
   tetrix?: boolean;
+  tetrixTime?: string;
   futbolMode?: string;
   futbolDurationOrGoals?: string;
   chocolateMedals?: boolean;

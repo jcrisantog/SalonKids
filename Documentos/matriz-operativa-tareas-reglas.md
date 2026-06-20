@@ -45,7 +45,7 @@ Estas respuestas generan tareas desde `questionnaire_task_rules`.
 | Seccion | Campo | Condicion | Tareas generadas | Grupo asignacion | Nota |
 | --- | --- | --- | --- | --- | --- |
 | Datos generales | `guestCount` | Mayor que 80 | Ajustar montaje por aforo alto | Sin grupo | Regla interna para eventos grandes. |
-| Pastel | `cake` | Verdadero | Preparar mesa y accesorios de pastel; Protocolo de pastel | Pastel | Una tarea interna y una publica. |
+| Pastel | `cake` | Verdadero | Preparar mesa y accesorios de pastel; Protocolo de pastel | Pastel | Una tarea interna y una publica; la publica usa `cakeTime` si existe. |
 | Pastel | `cakeSparklers` | Verdadero | Preparar chisperos o bombas de pastel | Pastel | Seguridad y preparacion. |
 | Pastel | `cakeBazookas` | Verdadero | Preparar bazukas de color | Pastel | Seguridad y limpieza posterior. |
 | Pastel | `cakeSouvenirs` | Verdadero | Coordinar souvenirs de pastel | Pastel | Reparto durante o despues de pastel. |
@@ -57,7 +57,7 @@ Estas respuestas generan tareas desde `questionnaire_task_rules`.
 | Presentacion | `characterShow` | Verdadero | Preparar aparicion de personaje; Aparicion de personaje | Animacion personaje | Interna y publica. |
 | Presentacion | `photoSession` | Verdadero | Sesion de fotos | Sin grupo | Publica. |
 | Presentacion | `surpriseGift` | Verdadero | Preparar sorpresa especial | Sin grupo | Publica. |
-| Pinata | `pinata` | Verdadero | Preparar area de pinata; Pinata | Pinata | Interna y publica. |
+| Pinata | `pinata` | Verdadero | Preparar area de pinata; Pinata | Pinata | Interna y publica; la publica usa `pinataTime` si existe. |
 | Pinata | `pinataCellophaneBags` | Verdadero | Preparar bolsitas de celofan | Pinata | Interna. |
 | Mesas | `reservedTables` | Verdadero | Colocar letreros de reservados | Montaje | Interna. |
 | Mesas | `kidsTables` | Verdadero | Montar mesitas infantiles | Montaje | Interna. |
@@ -78,7 +78,15 @@ Estas respuestas generan tareas desde `questionnaire_task_rules`.
 | Varios | `giantPhotoFrame` | Verdadero | Colocar marco gigante de fotos | Montaje | Interna. |
 | Varios | `candyBags` | Verdadero | Coordinar bolsitas de dulces | Dulces | Interna. |
 | Varios | `souvenirs` | Verdadero | Coordinar recuerditos | Dulces | Interna. |
-| Dinamicas | `danceGames` | Verdadero | Preparar dinamicas seleccionadas | Sin grupo | Publica. |
+| Dinamicas | `danceGames` | Verdadero | Preparar dinamicas seleccionadas | Animacion dinamicas | Interna para preparar juegos, limites, premios, musica y staff. |
+| Dinamicas | `reyPide` | Verdadero | Dinamica Rey pide | Animacion dinamicas | Publica; usa `reyPideTime` si existe. |
+| Dinamicas | `lobo` | Verdadero | Dinamica Lobo | Animacion dinamicas | Publica; usa `loboTime` si existe. |
+| Dinamicas | `camiseta` | Verdadero | Dinamica Camiseta | Animacion dinamicas | Publica; usa `camisetaTime` si existe. |
+| Dinamicas | `gatoGigante` | Verdadero | Dinamica Gato gigante | Animacion dinamicas | Publica; usa `gatoGiganteTime` si existe. |
+| Dinamicas | `sillas` | Verdadero | Dinamica Juego de las sillas | Animacion dinamicas | Publica; usa `sillasTime` si existe. |
+| Dinamicas | `loteria` | Verdadero | Dinamica Loteria | Animacion dinamicas | Publica; usa `loteriaTime` si existe. |
+| Dinamicas | `futbol` | Verdadero | Dinamica Futbol | Animacion dinamicas | Publica; usa `futbolTime` si existe. |
+| Dinamicas | `tetrix` | Verdadero | Dinamica Tetrix gigante | Animacion dinamicas | Publica; usa `tetrixTime` si existe. |
 | Dinamicas | `chocolateMedals` | Verdadero | Preparar medallas de chocolate | Sin grupo | Interna. |
 | Seguridad | `trampolineSocksOption` | Respondido | Confirmar calcetas y seguridad | Sin grupo | Interna. |
 | Programa | `foodStartTime` | Respondido | Inicio de comida | Programa cocina | Usa la hora capturada. |
@@ -104,6 +112,7 @@ Estos campos no crean una tarea propia porque sirven como contexto de una tarea 
 | Detalle de mesas y comida | `reservedTablesNotes`, `mainTable`, `mainTableLocation`, `beverageService`, `bottlesPerTable`, `flavoredWaterOptions`, `linenOption`, `adultTableCrayons`, `tableSetup`, `adultMenu`, `kidsMenu`, `kidsDrink`, `foodNotes` |
 | Proveedores y servicios | `decoratorArrivalTime`, `parkingPlates`, `parkingNotes`, `accessibilityNotes`, `externalAdultMenu`, `externalTaquizaStews`, `externalTacoCount`, `externalKidsMenuDescription` |
 | Dinamicas | Campos de participantes y variantes de cada juego, como `reyPideParticipants`, `loboParticipants`, `futbolMode` y similares |
+| Horarios relacionados | `cakeTime`, `pinataTime`, `reyPideTime`, `loboTime`, `camisetaTime`, `gatoGiganteTime`, `sillasTime`, `loteriaTime`, `futbolTime`, `tetrixTime` |
 | Notas generales | `specialGuests`, `protocolNotes`, `finalNotes` |
 
 ## Reglas candidatas opcionales
