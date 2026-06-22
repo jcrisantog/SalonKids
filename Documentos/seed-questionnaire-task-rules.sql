@@ -282,7 +282,7 @@ SELECT pg_temp.ensure_questionnaire_rule_task(
   'DJ',
   'DJ',
   'publica',
-  '16:45'
+  NULL
 );
 
 SELECT pg_temp.ensure_questionnaire_rule_task(
@@ -359,7 +359,7 @@ SELECT pg_temp.ensure_questionnaire_rule_task(
   'Animacion',
   'Animacion',
   'publica',
-  '17:45',
+  NULL,
   1
 );
 
@@ -514,7 +514,7 @@ SELECT pg_temp.ensure_questionnaire_rule_task(
   'Coordinacion',
   'Coordinadora',
   'interna',
-  '15:00'
+  NULL
 );
 
 SELECT pg_temp.ensure_questionnaire_rule_task(
@@ -1057,8 +1057,11 @@ SELECT pg_temp.ensure_questionnaire_rule_task(
 -- Fuentes de horario capturadas en campos relacionados.
 WITH schedule_sources(rule_field_key, task_name, source_field_key) AS (
   VALUES
+    ('djDanceMusic', 'Preparar bloque de baile', 'danceBlockTime'),
     ('presentation', 'Presentacion del festejado', 'presentationTime'),
+    ('characterShow', 'Aparicion de personaje', 'characterTime'),
     ('photoSession', 'Sesion de fotos', 'photoSessionTime'),
+    ('externalMenu', 'Coordinar proveedor o menu externo', 'externalFoodProviderArrivalTime'),
     ('externalDecoration', 'Recibir proveedor de decoracion', 'decoratorArrivalTime'),
     ('cake', 'Protocolo de pastel', 'cakeTime'),
     ('pinata', 'Pinata', 'pinataTime'),

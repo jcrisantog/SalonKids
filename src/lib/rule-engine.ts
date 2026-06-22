@@ -53,6 +53,7 @@ export type QuestionnaireData = {
   fatherMusic?: string;
   grandparentsMusic?: string;
   djDanceMusic?: boolean;
+  danceBlockTime?: string;
   danceMusicNotes?: string;
   inviteGuestsToDance?: boolean;
   staffDanceParticipation?: boolean;
@@ -72,6 +73,7 @@ export type QuestionnaireData = {
   birthStory?: string;
   characterShow?: boolean;
   characterName?: string;
+  characterTime?: string;
   photoSession?: boolean;
   photoSessionTime?: string;
   photographerName?: string;
@@ -124,6 +126,7 @@ export type QuestionnaireData = {
   vendorMeals?: number;
 
   externalMenu?: boolean;
+  externalFoodProviderArrivalTime?: string;
   externalAdultMenu?: string;
   externalTaquizaStews?: string;
   externalTacoCount?: string;
@@ -204,6 +207,7 @@ export type QuestionnaireData = {
 
   trampolineSocksOption?: string;
   foodStartTime?: string;
+  foodEndTime?: string;
   presentationTime?: string;
   showTime?: string;
   candyTableTime?: string;

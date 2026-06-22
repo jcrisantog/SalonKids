@@ -50,12 +50,12 @@ Estas respuestas generan tareas desde `questionnaire_task_rules`.
 | Pastel | `cakeBazookas` | Verdadero | Preparar bazukas de color | Pastel | Seguridad y limpieza posterior. |
 | Pastel | `cakeSouvenirs` | Verdadero | Coordinar souvenirs de pastel | Pastel | Reparto durante o despues de pastel. |
 | Musica | `blockedGenres` | Respondido | Bloquear musica no deseada | Audio/DJ | Interna para DJ. |
-| Musica | `djDanceMusic` | Verdadero | Preparar bloque de baile | Audio/DJ | Publica porque puede aparecer en itinerario. |
+| Musica | `djDanceMusic` | Verdadero | Preparar bloque de baile | Audio/DJ | Publica; usa `danceBlockTime` si existe. |
 | Musica | `microphoneNeeded` | Verdadero | Preparar microfono para mensajes | Audio/DJ | Interna de audio. |
 | Musica | `projectorNeeded` | Verdadero | Preparar proyector o pantalla | Audio/DJ | Interna de audio. |
 | Presentacion | `presentation` | Verdadero | Presentacion del festejado | Sin grupo | Publica; usa `presentationTime` si existe. |
-| Presentacion | `characterShow` | Verdadero | Preparar aparicion de personaje; Aparicion de personaje | Animacion personaje | Interna y publica. |
-| Presentacion | `photoSession` | Verdadero | Sesion de fotos | Sin grupo | Publica. |
+| Presentacion | `characterShow` | Verdadero | Preparar aparicion de personaje; Aparicion de personaje | Animacion personaje | Interna y publica; la tarea publica usa `characterTime` si existe. |
+| Presentacion | `photoSession` | Verdadero | Sesion de fotos | Sin grupo | Publica; usa `photoSessionTime` si existe. |
 | Presentacion | `surpriseGift` | Verdadero | Preparar sorpresa especial | Sin grupo | Publica. |
 | Pinata | `pinata` | Verdadero | Preparar area de pinata; Pinata | Pinata | Interna y publica; la publica usa `pinataTime` si existe. |
 | Pinata | `pinataCellophaneBags` | Verdadero | Preparar bolsitas de celofan | Pinata | Interna. |
@@ -63,7 +63,7 @@ Estas respuestas generan tareas desde `questionnaire_task_rules`.
 | Mesas | `kidsTables` | Verdadero | Montar mesitas infantiles | Montaje | Interna. |
 | Menu salon | `salonMenu` | Verdadero | Coordinar menu contratado con salon | Cocina/menu | Interna de cocina. |
 | Menu salon | `allergies` | Respondido | Alertar restricciones alimentarias | Cocina/menu | Interna critica. |
-| Menu externo | `externalMenu` | Verdadero | Coordinar proveedor o menu externo | Sin grupo | Interna. |
+| Menu externo | `externalMenu` | Verdadero | Coordinar proveedor o menu externo | Sin grupo | Interna; usa `externalFoodProviderArrivalTime` si existe. |
 | Cafe/dulces | `coffeeServiceTiming` | Respondido | Coordinar servicio de cafe | Cocina/menu | Interna. |
 | Cafe/dulces | `centerpieces` | Verdadero | Colocar centros de mesa | Montaje | Interna. |
 | Cafe/dulces | `candyTable` | Verdadero | Preparar mesa de dulces; Mesa de dulces | Dulces | Interna y publica; la tarea publica usa `candyTableTime` si existe. |
@@ -97,6 +97,18 @@ Estas respuestas generan tareas desde `questionnaire_task_rules`.
 | Programa | `tamalesTime` | Respondido | Tamales | Programa cocina | Usa la hora capturada. |
 | Programa | `celebratoryDanceTime` | Respondido | Baile del festejado | Sin grupo | Usa la hora capturada. |
 | Programa | `otherActivityName` | Respondido | Otra actividad programada | Sin grupo | Usa `otherActivityTime` como horario capturado. |
+
+## Horarios disponibles para reglas
+
+Todos estos campos aparecen en el catalogo de Reglas Cuestionario con tipo `time`. Pueden seleccionarse como campo disparador con el operador `answered` o como "Hora desde" de una tarea asociada.
+
+| Campo | Ubicacion | Visibilidad en cuestionario | Uso inicial |
+| --- | --- | --- | --- |
+| `characterTime` | Seccion 15 | Visible cuando `characterShow` es verdadero | Fuente de horario para la tarea publica de aparicion de personaje. |
+| `danceBlockTime` | Seccion 15 | Visible cuando `djDanceMusic` es verdadero | Fuente de horario para Preparar bloque de baile. |
+| `photoSessionTime` | Seccion 15 | Visible cuando `photoSession` es verdadero | Conserva la llave existente y programa Sesion de fotos. |
+| `externalFoodProviderArrivalTime` | Seccion 8 | Visible cuando `externalMenu` es verdadero | Fuente de horario para Coordinar proveedor o menu externo. |
+| `foodEndTime` | Seccion 15 | Oculto; se deriva de `foodStartTime` mas 60 minutos | Disponible como disparador o fuente de horario sin regla inicial propia. |
 
 ## Campos informativos sin regla inicial
 

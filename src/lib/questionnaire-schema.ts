@@ -13,6 +13,7 @@ export type QuestionnaireField = {
   key: keyof QuestionnaireData;
   label: string;
   type: FieldType;
+  isInternal?: boolean;
   placeholder?: string;
   helper?: string;
   options?: string[];
@@ -79,6 +80,7 @@ export const emptyQuestionnaire: QuestionnaireData = {
   fatherMusic: "",
   grandparentsMusic: "",
   djDanceMusic: false,
+  danceBlockTime: "",
   danceMusicNotes: "",
   inviteGuestsToDance: false,
   staffDanceParticipation: false,
@@ -97,6 +99,7 @@ export const emptyQuestionnaire: QuestionnaireData = {
   birthStory: "",
   characterShow: false,
   characterName: "",
+  characterTime: "",
   photoSession: false,
   photoSessionTime: "",
   photographerName: "",
@@ -149,6 +152,7 @@ export const emptyQuestionnaire: QuestionnaireData = {
   vendorMeals: undefined,
 
   externalMenu: false,
+  externalFoodProviderArrivalTime: "",
   externalAdultMenu: "",
   externalTaquizaStews: "",
   externalTacoCount: "",
@@ -229,6 +233,7 @@ export const emptyQuestionnaire: QuestionnaireData = {
 
   trampolineSocksOption: "",
   foodStartTime: "",
+  foodEndTime: "",
   presentationTime: "",
   showTime: "",
   candyTableTime: "",
@@ -328,7 +333,6 @@ export const questionnaireSections: QuestionnaireSection[] = [
       { key: "characterShow", label: "Aparicion de personaje", type: "boolean" },
       { key: "characterName", label: "Personaje solicitado", type: "text", dependsOn: "characterShow", dependsValue: true },
       { key: "photoSession", label: "Sesion de fotos", type: "boolean" },
-      { key: "photoSessionTime", label: "Hora de fotos", type: "time", dependsOn: "photoSession", dependsValue: true },
       { key: "photographerName", label: "Fotografo", type: "text", dependsOn: "photoSession", dependsValue: true },
       { key: "surpriseGift", label: "Sorpresa especial", type: "boolean" },
       { key: "surpriseGiftNotes", label: "Notas de sorpresa", type: "textarea", dependsOn: "surpriseGift", dependsValue: true },
@@ -400,6 +404,7 @@ export const questionnaireSections: QuestionnaireSection[] = [
     description: "Proveedor externo, tacos, menu infantil y permisos para servicio.",
     fields: [
       { key: "externalMenu", label: "Traera servicio externo o alimentos", type: "boolean" },
+      { key: "externalFoodProviderArrivalTime", label: "Hora de llegada del proveedor de comida", type: "time", dependsOn: "externalMenu", dependsValue: true },
       { key: "externalAdultMenu", label: "Menu para adultos", type: "textarea", dependsOn: "externalMenu", dependsValue: true },
       { key: "externalTaquizaStews", label: "Guisados en caso de taquiza", type: "text", dependsOn: "externalMenu", dependsValue: true },
       { key: "externalTacoCount", label: "Cuantos tacos ofrecer", type: "text", dependsOn: "externalMenu", dependsValue: true },
@@ -516,6 +521,10 @@ export const questionnaireSections: QuestionnaireSection[] = [
     description: "Horarios tentativos para ordenar el cronograma.",
     fields: [
       { key: "foodStartTime", label: "Inicio de comida", type: "time" },
+      { key: "foodEndTime", label: "Hora Fin Comida", type: "time", isInternal: true },
+      { key: "characterTime", label: "Hora del personaje", type: "time", dependsOn: "characterShow", dependsValue: true },
+      { key: "danceBlockTime", label: "Bloque de baile", type: "time", dependsOn: "djDanceMusic", dependsValue: true },
+      { key: "photoSessionTime", label: "Hora de fotos", type: "time", dependsOn: "photoSession", dependsValue: true },
       { key: "cakeTime", label: "Momento de pastel", type: "time", dependsOn: "cake", dependsValue: true },
       { key: "pinataTime", label: "Pinata", type: "time", dependsOn: "pinata", dependsValue: true },
       { key: "presentationTime", label: "Presentacion del festejado(a)", type: "time" },
@@ -568,10 +577,45 @@ export function normalizeQuestionnaire(input?: Partial<QuestionnaireData> | null
     questionnaire.otherActivityTime = "";
   }
 
+  questionnaire.foodEndTime = addMinutesToTime(questionnaire.foodStartTime, 60);
+
   return questionnaire;
 }
 
+function addMinutesToTime(value: unknown, minutesToAdd: number) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  const match = value.trim().match(/^(\d{2}):(\d{2})(?::(\d{2}))?$/);
+
+  if (!match) {
+    return "";
+  }
+
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const seconds = match[3] === undefined ? 0 : Number(match[3]);
+
+  if (hours > 23 || minutes > 59 || seconds > 59) {
+    return "";
+  }
+
+  const minutesInDay = 24 * 60;
+  const totalMinutes = (hours * 60 + minutes + minutesToAdd) % minutesInDay;
+  const resultHours = Math.floor(totalMinutes / 60);
+  const resultMinutes = totalMinutes % 60;
+
+  const result = `${String(resultHours).padStart(2, "0")}:${String(resultMinutes).padStart(2, "0")}`;
+
+  return match[3] === undefined ? result : `${result}:${match[3]}`;
+}
+
 export function isFieldVisible(field: QuestionnaireField, data: QuestionnaireData) {
+  if (field.isInternal) {
+    return false;
+  }
+
   if (!field.dependsOn) {
     return true;
   }
