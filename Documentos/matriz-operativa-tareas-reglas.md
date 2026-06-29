@@ -145,6 +145,23 @@ No se activan inicialmente para evitar ruido operativo, pero son buenas candidat
 | `citeGuestsEarly` | Citar invitados temprano | Es comunicacion previa, no tarea del evento. |
 | `shareAdditionalServices` | Compartir servicios adicionales | Es seguimiento comercial, no operativo del evento. |
 
+## Extension desde ListaTareas.txt
+
+El cambio `seed-lista-tareas-faltantes` agrega una extension auditable de la base operativa a partir de `Documentos/ListaTareas.txt`.
+
+Archivos relacionados:
+
+- `Documentos/seed-lista-tareas-master-tasks.sql`: siembra tareas maestras faltantes agrupadas por bloque operativo.
+- `Documentos/seed-lista-tareas-questionnaire-rules.sql`: siembra reglas faltantes usando campos actuales del cuestionario.
+- `Documentos/reporte-lista-tareas-vs-bd.md`: documenta tareas dadas de alta, regla aplicada, tareas ignoradas y motivo.
+
+Criterios aplicados:
+
+- Las etiquetas del documento como `[Aplica]`, `[No aplica]` o `[Pendiente]` no se usan para decidir altas.
+- Las tareas equivalentes a una tarea existente se omiten para evitar duplicados.
+- Las subtareas de un mismo flujo se agrupan en una tarea maestra accionable cuando conviene operar por bloque.
+- Las reglas nuevas usan solo campos actuales; actividades sin campo confiable quedan como candidatas para un cambio futuro de cuestionario.
+
 ## Reglas hardcodeadas actuales
 
 `src/lib/rule-engine.ts` conserva una lista historica `questionnaireRules`, pero las rutas actuales de guardado usan `syncReactiveTasks`, que genera tareas desde reglas configurables. La base inicial debe mantenerse desde SQL/admin para que la duena pueda editar sin cambios de codigo.

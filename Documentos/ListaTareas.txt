@@ -1,0 +1,399 @@
+ Lista de actividades
+
+1. Colocar el sillón rojo en la oficina del salón. **[Aplica]**
+2. Sacar el sillón rojo para la actividad del pastel. **[Aplica]**
+3. Colocar el sillón rojo frente a la mesa de pastel. **[Aplica]**
+4. Regresar el sillón rojo a la oficina después del pastel. **[Aplica]**
+5. Colocar el sillón rojo sobre la mesa de hockey al terminar el evento. **[Aplica]**
+6. Proporcionar agua, fruta y frituras a personas que pidan informes. **[Aplica]**
+7. Ayudar a subir las cosas de los anfitriones. **[Aplica]**
+8. Recibir a los anfitriones desde la entrada. **[Aplica]**
+9. Dar bienvenida a los anfitriones. **[Aplica]**
+10. Mostrar las áreas del salón a los anfitriones. **[Aplica]**
+11. Ofrecer fruta, frituras y agua a los anfitriones. **[Aplica]**
+12. Reunir al equipo para presentarse con los anfitriones. **[Aplica]**
+13. Realizar presentación del festejado. **[Aplica]**
+14. Reunir al equipo para la presentación. **[Aplica]**
+15. Tomar matracas, cornetas y tambores para la presentación. **[Aplica]**
+
+## Mesas, sillas y montaje
+
+16. Colocar mesas y sillas en las áreas correspondientes. **[Aplica]**
+17. Colocar 13 mesas en total. **[Aplica]**
+18. Colocar 6 mesas de 5 personas hacia la pared blanca. **[Aplica]**
+19. Colocar mesa frente al barandal gris subiendo al área de comensales. **[No aplica]**
+20. Colocar mesa de 8 personas sin sillas frente al barandal gris. **[Aplica]**
+21. Colocar mesa de 8 personas sin sillas cerca de la salida del Eurobungy Jump. **[Aplica]**
+22. Colocar 2 mesas de 10 personas reservadas para niños. **[Aplica]**
+23. Colocar mesa de pastel. **[Aplica]**
+24. Colocar mesa de regalos. **[Aplica]**
+25. Colocar estación de bebidas. **[Aplica]**
+26. Usar mesas sin sillas para colocar alimentos. **[Aplica]**
+27. Colocar mesitas redondas para estación de café y complementos. **[No aplica]**
+28. Colocar mesa octagonal. **[Aplica]**
+29. Colocar 6 sillas en la mesa octagonal. **[Aplica]**
+30. Colocar mesa de dulces. **[No aplica]**
+31. Colocar mesa para postres. **[No aplica]**
+32. Colocar cinta curly en mesa de dulces. **[No aplica]**
+33. Colocar letrero de mesa principal. **[No aplica]**
+34. Colocar letreros para reservar mesas. **[Aplica]**
+35. Colocar letreros de menú en cada mesa. **[No aplica]**
+36. Colocar mesa para pintacaritas. **[No aplica]**
+37. Colocar mesa para guarniciones. **[No aplica]**
+38. Secar áreas mojadas del salón. **[Aplica]**
+39. Quitar escalera. **[Aplica]**
+40. Subir colchón naranja al área de Eurobungy Jump. **[Aplica]**
+41. Bajar colchón naranja al final del evento. **[Aplica]**
+
+## Agua, refrescos, vasos y hieleras
+
+42. Colocar y llenar jarras con agua. **[Aplica]**
+43. Colocar una jarra de agua natural en cada mesa. **[Aplica]**
+44. Colocar una jarra de agua de jamaica en cada mesa. **[Aplica]**
+45. Preparar agua de sabor jamaica. **[Aplica]**
+46. Rellenar continuamente jarras con agua natural y de sabor. **[Aplica]**
+47. Preguntar sabor de agua por mesa. **[No aplica]**
+48. Colocar refrescos por mesa. **[No aplica]**
+49. Colocar 4 refrescos en la estación de bebidas. **[Aplica]**
+50. Servir agua o refresco desde la estación de bebidas a los invitados. **[Aplica]**
+51. Preguntar a invitados si desean más agua o refresco. **[Aplica]**
+52. Servir bebidas de manera personalizada. **[Aplica]**
+53. Preguntar si la bebida la quieren con hielo o sin hielo. **[Aplica]**
+54. Proporcionar servilletas con la bebida. **[Aplica]**
+55. Colocar hieleras y vasos por mesa. **[Aplica]**
+56. Subir vasos de la bodega. **[Aplica]**
+57. Colocar 8 vasos y 1 hielera por mesa. **[Aplica]**
+58. Colocar vitrolero con agua natural en estación de bebidas. **[Aplica]**
+59. Colocar vitrolero con agua de jamaica en estación de bebidas. **[Aplica]**
+60. Colocar servilletas, hieleras y vasos en estación de bebidas. **[Aplica]**
+61. Colocar vitrolero con agua natural en barra de cocina. **[Aplica]**
+62. Colocar garrafones con agua de sabor en estación de bebidas. **[No aplica]**
+63. Subir jarras de la bodega. **[Aplica]**
+64. Comprar 6 garrafones. **[Aplica]**
+65. Llevar garrafones a la purificadora y regresarlos. **[Aplica]**
+66. Apoyar a preparar aguas de sabor. **[Aplica]**
+67. Subir bolsas de hielo y colocarlas en cocina. **[Aplica]**
+68. Colocar hieleras, jarras y refrescos en barra de cocina. **[Aplica]**
+69. Recibir bolsas de hielo de anfitriona. **[No aplica]**
+
+## Servilletas, saleros y desechables
+
+70. Rellenar saleros con sal. **[Aplica]**
+71. Rellenar servilleteros con servilletas. **[Aplica]**
+72. Colocar saleros y servilleteros en mesas. **[Aplica]**
+73. Pedir servilletas al servicio de alimentos o anfitriones. **[No aplica]**
+74. Vender servilletas si se terminan. **[No aplica]**
+75. Proporcionar todos los desechables para menú de adultos. **[Aplica]**
+76. Proporcionar desechables para menú de niños. **[Aplica]**
+77. Proporcionar platos y tenedores para fruta. **[Aplica]**
+78. Proporcionar vasos para café. **[Aplica]**
+79. Proporcionar vasos para agua. **[Aplica]**
+80. Proporcionar bolsitas de celofán para frituras. **[Aplica]**
+81. Proporcionar sobre de salsa botanera. **[Aplica]**
+82. No proporcionar desechables para pastel. **[Aplica]**
+
+## Limpieza y orden
+
+83. Limpiar mesas y sillas. **[Aplica]**
+84. Tallar, limpiar y secar sillas. **[Aplica]**
+85. Limpiar mesa octagonal. **[Aplica]**
+86. Limpiar mesa de regalos. **[Aplica]**
+87. Limpiar estación de bebidas. **[Aplica]**
+88. Limpiar mesa de dulces. **[No aplica]**
+89. Limpiar mesa de pintacaritas. **[No aplica]**
+90. Limpiar mesa de guarniciones. **[No aplica]**
+91. Limpiar estación de café. **[No aplica]**
+92. Subir lonas si hace calor. **[Aplica]**
+93. Bajar lonas si llueve o hay partidos. **[Aplica]**
+94. Bajar y amarrar lonas al terminar evento. **[Aplica]**
+95. Limpiar resbaladilla y fomies durante el evento. **[Aplica]**
+96. Limpiar y ordenar estación de bebidas durante todo el evento. **[Aplica]**
+97. Barrer constantemente. **[Aplica]**
+98. Trapear constantemente. **[Aplica]**
+99. Barrer y trapear área de comensales después de comer. **[Aplica]**
+100. Barrer y trapear área de abajo después de comer. **[Aplica]**
+101. Mantener mesas limpias. **[Aplica]**
+102. Acomodar sillas. **[Aplica]**
+103. Retirar platos, basura y vasos sucios. **[Aplica]**
+104. Revisar baños antes del evento. **[Aplica]**
+105. Revisar que no haya papeles en cestos de baños. **[Aplica]**
+106. Revisar sanitas, papel de baño y jabón/shampoo para manos. **[Aplica]**
+107. Rellenar botellas con cloro o creolina. **[Aplica]**
+108. Aromatizar baños. **[Aplica]**
+109. Rellenar dispensadores de alcohol. **[Aplica]**
+110. Trapear baños constantemente. **[Aplica]**
+111. Tener listo material de limpieza para cocina. **[Aplica]**
+112. Colocar bolsas para basura, PET y latas. **[Aplica]**
+
+## Manteles, papel y decoración
+
+113. Colocar manteles en mesas. **[Aplica]**
+114. Colocar manteles con brillos en tonos grises. **[Aplica]**
+115. Colocar manteles blanco mate y hoja de papel. **[No aplica]**
+116. Colocar hojas de papel y crayolas en mesas. **[No aplica]**
+117. Colocar mantel en mesa de regalos. **[Aplica]**
+118. Colocar mantel en estación de bebidas. **[Aplica]**
+119. Colocar mantel redondo de tela en mesa de pastel. **[Aplica]**
+120. Colocar mantel en estación de café. **[Aplica]**
+121. Colocar mantel ahulado en mesa de pintacaritas. **[No aplica]**
+122. Escribir “Bienvenidos” en hojas de cada mesa. **[No aplica]**
+123. Enrollar manteles no usados. **[Aplica]**
+124. Colocar manteles en anaqueles de bodega. **[Aplica]**
+125. Enviar foto a Martha de cómo quedaron los manteles al final. **[Aplica]**
+126. Conectar cortina de luces. **[Aplica]**
+127. Colocar tapete negro en subida de escaleras de entrada. **[Aplica]**
+128. Colocar lona de anfitriona arriba del letrero de felicidades. **[No aplica]**
+129. Colocar stand de globos para fotos. **[No aplica]**
+130. Apoyar con marco gigante para fotos. **[No aplica]**
+131. Colocar letrero en barandal arriba del nombre. **[No aplica]**
+132. Repartir sombreros o máscaras para actividad del pastel. **[Aplica]**
+133. Colocar souvenirs de anfitriones. **[No aplica]**
+134. Repartir souvenirs. **[No aplica]**
+
+## Frituras, fruta y botanas
+
+135. Preparar bolsitas de celofán con palomitas y salsa botanera. **[Aplica]**
+136. Colocar fruta en charolas de servicio. **[Aplica]**
+137. Servir fruta en platitos hondos de unicel. **[Aplica]**
+138. Agregar limón a la fruta. **[Aplica]**
+139. Colocar tenedor a cada platito de fruta. **[Aplica]**
+140. Preparar condimentos para fruta: miguelitos, chile piquín, tajín y chamoy. **[Aplica]**
+141. Preparar 4 charolas con fruta. **[Aplica]**
+142. Preparar 3 charolas con frituras. **[Aplica]**
+143. Preparar canastitas de dulces y papas por mesa. **[No aplica]**
+144. Colocar canastitas de dulces en mesas después de comer. **[No aplica]**
+145. Mesa de botanas. **[No aplica]**
+
+## Juegos de mesa y áreas de juego
+
+146. Ofrecer juegos de mesa a anfitriones. **[Aplica]**
+147. Ofrecer dominó. **[Aplica]**
+148. Ofrecer cartas. **[Aplica]**
+149. Ofrecer ajedrez. **[Aplica]**
+150. Ofrecer UNO. **[Aplica]**
+151. Ofrecer juego de caja blanca tipo futbolito. **[Aplica]**
+152. Recoger y guardar juegos al final. **[Aplica]**
+153. Colocar fomies en área de resbaladilla. **[Aplica]**
+154. Cubrir rejillas de coladeras con bolsas. **[Aplica]**
+155. Lavar y colocar pelotitas de futbolito. **[Aplica]**
+156. Colocar bolas de billar. **[Aplica]**
+157. Lavar pelotas de basketball. **[Aplica]**
+158. Lavar pelota de football. **[Aplica]**
+159. Colocar tacos de billar. **[Aplica]**
+160. Colocar manerales y ficha de hockey. **[Aplica]**
+161. Conectar extensión de luz para mesa de hockey. **[Aplica]**
+162. Quitar tapas de mesas de juego. **[Aplica]**
+163. Volver a colocar tapas de mesas de juego al final. **[Aplica]**
+164. Inflar globos y colocarlos en bolsas negras. **[Aplica]**
+165. Volver a colocar mesitas de pequeños para pastel. **[No aplica]**
+
+## Piñata y dulces
+
+166. Colocar piñata. **[Aplica]**
+167. Colgar piñata desde inicio del evento. **[Aplica]**
+168. Amarrar rafia color violeta a la piñata. **[Aplica]**
+169. Formar a los niños por estaturas. **[Aplica]**
+170. Evitar participación de adultos en piñata. **[Aplica]**
+171. Realizar piñata solo para niñas y niños. **[Aplica]**
+172. Realizar piñata para adultos. **[No aplica]**
+173. Separar piñatas por edad. **[No aplica]**
+174. Separar piñatas por niñas y niños. **[No aplica]**
+175. Preguntar al festejado si quiere volver a pegarle a la piñata. **[Aplica]**
+176. Pasar al festejado varias veces a pegarle a la piñata. **[Aplica]**
+177. Hacer que Eder Matías rompa la piñata. **[Aplica]**
+178. Abrir la piñata cuando esté por romperse para evitar accidentes. **[Aplica]**
+179. Pedir bolsitas a la anfitriona para dulces de piñata. **[Aplica]**
+180. Colocar bolsitas en caja de calcetas antiderrapantes. **[Aplica]**
+181. Repartir bolsitas a los niños cuando se rompa la piñata. **[Aplica]**
+182. Proporcionar palo para piñata. **[Aplica]**
+183. Pedir palo de piñata a anfitriones. **[No aplica]**
+184. Desamarrar piñata para iniciar actividad. **[Aplica]**
+185. Guardar tramo de rafia. **[Aplica]**
+186. Repartir bolsitas de celofán del salón para dulces de piñata. **[No aplica]**
+187. Repartir bolsitas de dulces al final del evento. **[Aplica]**
+188. Apoyar a repartir bolsitas de dulces después de la piñata. **[Aplica]**
+189. Colocar mesita de niños para bolsitas de dulces. **[Aplica]**
+190. Retirar mesita de bolsitas al terminar reparto. **[Aplica]**
+
+## Dinámicas, juegos y animación
+
+191. Dinámica de superhéroes antes de la piñata. **[Aplica]**
+192. Usar disfraces de Hot Dog, Hamburguesa, Spiderman y Capitán América. **[Aplica]**
+193. Hacer marometas, lagartijas y animación con superhéroes. **[Aplica]**
+194. Spiderman carga al festejado antes de la piñata. **[No aplica]**
+195. Usar disfraces en actividad del pastel. **[No aplica]**
+196. Juego de las sillas. **[No aplica]**
+197. Juego del Rey Pide. **[No aplica]**
+198. Juego del Gato Gigante. **[Aplica]**
+199. Formar equipos para Gato Gigante. **[Aplica]**
+200. Proporcionar círculos y cruces para Gato Gigante. **[Aplica]**
+201. Subir cruces y círculos al área de fútbol rápido. **[Aplica]**
+202. Subir colchón para Gato Gigante. **[Aplica]**
+203. Apoyar y animar equipos durante juegos. **[Aplica]**
+204. Juego de Tetrix. **[Aplica]**
+205. Subir piezas y base movible de Tetrix. **[Aplica]**
+206. Colocar mesa para piezas de Tetrix. **[Aplica]**
+207. Juego de la camiseta. **[No aplica]**
+208. Tener camisetas listas. **[No aplica]**
+209. Formar equipos para juego de camiseta. **[No aplica]**
+210. Juego de lotería. **[No aplica]**
+211. Juego de ¿Lobo estás ahí? **[No aplica]**
+212. Juego de Basta. **[No aplica]**
+213. Partidos de fútbol. **[Aplica]**
+214. Cerrar Space Roller durante partido. **[Aplica]**
+215. Preguntar a invitados si desean participar en fútbol. **[Aplica]**
+216. Organizar porristas. **[Aplica]**
+217. Repartir tambores para porras. **[Aplica]**
+218. Designar árbitro, entrenador y narrador del partido. **[Aplica]**
+219. Concluir partido al llegar a 3 goles. **[Aplica]**
+220. Tomar tiempo con cronómetro. **[No aplica]**
+221. Entregar copa mundialista al equipo ganador. **[No aplica]**
+222. Entregar medallas de chocolate. **[Aplica]**
+223. Pedir premios a anfitriona para dinámicas. **[Aplica]**
+224. Entregar premios a ganadores. **[Aplica]**
+225. Batukada. **[Aplica]**
+226. Coreografía de chicas fantasía. **[No aplica]**
+227. Animación general. **[No aplica]**
+228. Karaoke. **[No aplica]**
+229. Momento para bailar. **[No aplica]**
+230. Desfile de disfraces. **[No aplica]**
+231. Canto del festejado antes de piñata. **[No aplica]**
+
+## Comida adultos y servicio en mesas
+
+232. Repartir alimentos apoyados por personal de áreas de juego. **[Aplica]**
+233. Colocar menú en barra. **[No aplica/según paquete]**
+234. Servir barbacoa. **[No aplica]**
+235. Servir consomé. **[No aplica]**
+236. Colocar cazuelitas con cebolla, cilantro, limones y salsas. **[No aplica]**
+237. Colocar plato ranchero. **[No aplica]**
+238. Colocar plato huasteco. **[No aplica]**
+239. Calentar tortillas. **[No aplica/Aplica según menú]**
+240. Servir tacos. **[Aplica en taquiza artesanal]**
+241. Colocar guisados de taquiza. **[Aplica en taquiza artesanal]**
+242. Colocar montaje de barro. **[Aplica]**
+243. Rellenar tortillas en mesa de montaje. **[Aplica]**
+244. Rellenar guisados en cazuelas. **[Aplica]**
+245. Colocar cucharas, tenedores, platos y salsas. **[Aplica]**
+246. Calentar guisados y tortillas. **[Aplica]**
+247. Servir hasta 3 tacos por persona inicialmente. **[Aplica]**
+248. Servir tacos con arroz o frijoles si lo desean. **[Aplica]**
+249. Servir guisado sin tortilla si lo piden. **[Aplica]**
+250. Escribir menú y órdenes en cuadernitos. **[Aplica]**
+251. Preguntar constantemente si desean más comida. **[Aplica]**
+252. Llevar comida a mesas. **[Aplica]**
+253. Retirar mesas de montaje después de comer. **[No aplica]**
+254. Servir mole con pollo. **[No aplica]**
+255. Servir tacos de canasta. **[No aplica]**
+256. Servir parrillada del salón. **[No aplica]**
+257. Servir parrillada de servicio externo. **[No aplica]**
+258. Servir menú traído por anfitriones. **[No aplica]**
+259. Apoyar a servicio externo a subir cosas. **[No aplica]**
+260. Colocar salsas, verduras y limones en mesas. **[No aplica]**
+261. Colocar guarniciones. **[No aplica]**
+262. Revisar faltantes en mesa de guarniciones. **[No aplica]**
+263. Entregar cuadernitos y plumas al final. **[Aplica]**
+264. Repartir libretitas/comandas antes del evento. **[Aplica]**
+265. Asignar mesas al personal de apoyo. **[Aplica]**
+
+## Menú de niños
+
+266. Colocar menú de niños a las 16:00 hrs. **[Aplica]**
+267. Servir tiras de pechuga empanizada. **[Aplica]**
+268. Servir coditos con crema. **[Aplica]**
+269. Tener lista catsup y mayonesa. **[Aplica]**
+270. Subir platos de doble división y tenedores. **[Aplica]**
+271. Dar de comer a los pequeños. **[Aplica]**
+272. Llevar platitos de niños a sus mesas. **[Aplica]**
+273. Hidratar a los niños durante todo el evento. **[Aplica]**
+274. Ofrecer vasitos con agua natural o de sabor a niños. **[Aplica]**
+275. Colocar servilletas, vasos y jarras en mesas de niños. **[Aplica]**
+276. Vigilar a niños mientras comen. **[Aplica]**
+277. Cortar porciones grandes para evitar atragantamiento. **[Aplica]**
+278. Sentarse cerca de los niños pequeños para ayudarles a comer. **[Aplica]**
+279. Dar de comer en la boca a niños más pequeños. **[Aplica]**
+280. Preguntar a niños qué desean comer. **[No aplica]**
+281. Menú de niños por anfitriones. **[No aplica]**
+
+## Servicios extras
+
+282. Servicio de mesa de dulces. **[No aplica]**
+283. Inaugurar mesa de dulces. **[No aplica]**
+284. Colocar cinta curly para mesa de dulces. **[No aplica]**
+285. Entregar tijeras para cortar cinta curly. **[No aplica]**
+286. Asegurar que festejado tome dulces primero. **[No aplica]**
+287. Fuente de chocolate. **[No aplica]**
+288. Diluir chocolate. **[No aplica]**
+289. Conectar máquina de fuente de chocolate. **[No aplica]**
+290. Repartir brochetas con fruta. **[No aplica]**
+291. Proporcionar banderillas con capacillos y servilleta. **[No aplica]**
+292. Servicio de elotes/esquites. **[No aplica]**
+293. Servir esquites en bolsas de Doritos. **[No aplica]**
+294. Servir elotes en charolitas. **[No aplica]**
+295. Subir platitos cuadrados y tenedores pequeños. **[No aplica]**
+296. Servicio de paletas de hielo. **[No aplica]**
+297. Colocar paletas o congeladas en congeladora. **[No aplica]**
+298. Repartir paletas de hielo. **[No aplica]**
+299. Servicio de helados. **[No aplica]**
+300. Servir helados en barquillos o vasitos. **[No aplica]**
+301. Servicio de nieves. **[No aplica]**
+302. Servicio de bolis. **[No aplica]**
+303. Servicio de postres. **[No aplica]**
+304. Servicio de pintacaritas. **[No aplica]**
+305. Servicio de tamales. **[No aplica]**
+306. Repartir tamales al mismo tiempo que pastel. **[No aplica]**
+307. Servicio externo de show. **[No aplica]**
+308. Colocar sillas para presenciar show. **[No aplica]**
+309. Avisar si show requiere conexión eléctrica. **[No aplica]**
+310. Conectar show a enchufe de oficina. **[No aplica]**
+311. Servicio de nanny. **[No aplica]**
+312. Servicio de espiropapas. **[No aplica]**
+313. Preparar catsup, mayonesa, crema, Valentina y queso para espiripapas. **[No aplica]**
+314. Repartir espiripapas. **[No aplica]**
+
+## Pastel, café y gelatina
+
+315. Actividad del pastel. **[Aplica]**
+316. Cargar al festejado a la hora del pastel. **[No aplica]**
+317. Repartir pastel primero a anfitriones. **[Aplica]**
+318. Repartir pastel a todos los invitados. **[Aplica]**
+319. Apoyar a Martha a colocar pastel en platitos. **[Aplica]**
+320. Gelatina. **[Pendiente]**
+321. Colocar gelatinas en charolas de servicio. **[Pendiente]**
+322. Colocar gelatina en congeladora antes del pastel. **[Pendiente]**
+323. Servir gelatina en vasitos. **[Pendiente]**
+324. Cortar gelatina. **[Pendiente]**
+325. Servicio de café. **[Aplica]**
+326. Servir café a la hora del pastel. **[Aplica]**
+327. Proporcionar 40 vasos térmicos para café. **[Aplica]**
+328. Subir vasos térmicos de la bodega. **[Aplica]**
+329. Disponer todo lo referente al café. **[Aplica]**
+330. Repartir café. **[Aplica]**
+331. Servir café durante todo el evento. **[No aplica]**
+332. Servir café después de comer. **[No aplica]**
+333. Colocar cafeteras. **[No aplica aún]**
+334. Conectar cafeteras. **[No aplica aún]**
+335. Colocar azúcar, cucharitas y servilletas para café. **[No aplica aún]**
+
+## Horarios y eventos especiales mencionados
+
+336. Desayuno. **[No aplica]**
+337. Comida para pequeños. **[Aplica]**
+338. Comida para adultos. **[Aplica]**
+339. Celebración litúrgica. **[No aplica]**
+340. Pintacaritas. **[No aplica]**
+341. Partidos de fútbol a las 18:00 hrs. **[Aplica]**
+342. Piñata a las 18:30 hrs. **[Aplica]**
+343. Pastel a las 19:00 hrs. **[Aplica]**
+344. Mariachi. **[No aplica]**
+345. Concursos por parte de anfitriones. **[No aplica]**
+346. Tamales. **[No aplica]**
+347. Elotes con frituras. **[No aplica]**
+348. Postres. **[No aplica]**
+349. Bolis. **[No aplica]**
+350. Helados. **[No aplica]**
+351. Nieves. **[No aplica]**
+352. Karaoke. **[No aplica]**
+353. Show. **[No aplica]**
+354. Animación. **[No aplica]**
+355. Momento para bailar. **[No aplica]**

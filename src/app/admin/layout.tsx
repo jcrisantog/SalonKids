@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+import { AdminAssistantChat } from "@/components/admin/AdminAssistantChat";
 import { supabase } from "@/lib/supabase";
 
 export default function AdminLayout({
@@ -98,6 +99,7 @@ export default function AdminLayout({
         </header>
         <div className="p-4 sm:p-6 lg:p-8">{children}</div>
       </main>
+      <AdminAssistantChat />
     </div>
   );
 }

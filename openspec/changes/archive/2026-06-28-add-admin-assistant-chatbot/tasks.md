@@ -1,0 +1,8 @@
+- [x] 1. Crear guia interna del asistente con flujos administrativos soportados
+- [x] 2. Crear API protegida `/api/admin/assistant` para responder consultas con contexto de pantalla
+- [x] 3. Crear componente de chat del asistente con historial de sesion, estados de carga y errores
+- [x] 4. Integrar boton flotante/panel del asistente en el layout administrativo
+- [x] 5. Agregar entrada por audio mediante reconocimiento de voz del navegador con fallback a texto
+- [x] 6. Incluir enlaces internos sugeridos en respuestas del asistente
+- [X] 7. Verificar experiencia responsive en desktop y movil
+- [x] 8. Verificar lint/build

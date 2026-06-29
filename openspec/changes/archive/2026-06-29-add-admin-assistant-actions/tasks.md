@@ -1,0 +1,14 @@
+- [x] 1. Revisar el cambio `add-admin-assistant-chatbot` y definir el punto de integracion del modo accionable
+- [x] 2. Definir contratos TypeScript para intenciones, planes pendientes, confirmaciones, acciones soportadas y errores de resolucion
+- [x] 3. Crear resolutores backend para eventos, tareas de evento y staff con manejo de coincidencias ambiguas
+- [x] 4. Crear API protegida para generar planes de accion desde mensajes del asistente
+- [x] 5. Crear API protegida para ejecutar planes confirmados revalidando permisos, entidades y vigencia del plan
+- [x] 6. Implementar acciones soportadas para crear tarea, reasignar responsables, cambiar hora y eliminar tarea de evento
+- [x] 7. Implementar acciones soportadas para crear staff, inactivar staff y eliminar staff
+- [x] 8. Agregar auditoria de acciones confirmadas del asistente con usuario, mensaje, tipo de accion, entidades y resultado
+- [x] 9. Actualizar UI del asistente para mostrar aclaraciones, tarjetas de confirmacion, confirmacion reforzada y resultados
+- [x] 10. Agregar pruebas o verificaciones enfocadas en ambiguedad, confirmacion obligatoria, acciones destructivas y validacion de staff/tareas
+- [X] 11. Verificar experiencia por texto y por audio transcrito en desktop y movil
+- [x] 12. Ejecutar lint/build y documentar cualquier limitacion de verificacion
+- [x] 13. Implementar acciones soportadas para crear evento, modificar evento y eliminar evento
+- [x] 14. Actualizar verificaciones de asistente accionable para acciones de eventos
